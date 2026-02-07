@@ -5,6 +5,7 @@ export default function App() {
   const [script, setScript] = useState("");
   const [voice, setVoice] = useState("");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const loadVoices = () => {
@@ -17,18 +18,20 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white p-8 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Archnemix Shorts Generator</h1>
+      <h1 className="text-3xl font-bold mb-6">
+        Archnemix Shorts Generator
+      </h1>
 
-      {/* SCRIPT INPUT */}
+      {/* SCRIPT */}
       <textarea
         className="w-full p-4 text-black rounded-lg mb-4"
         rows={6}
-        placeholder="Enter your YouTube Shorts script here..."
+        placeholder="Enter your YouTube Shorts script..."
         value={script}
         onChange={e => setScript(e.target.value)}
       />
 
-      {/* VOICE SELECT */}
+      {/* VOICE */}
       <select
         className="w-full p-3 text-black rounded-lg mb-4"
         value={voice}
@@ -42,12 +45,23 @@ export default function App() {
         ))}
       </select>
 
-      {/* GENERATE BUTTON */}
+      {/* GENERATE */}
       <GenerateButton
         script={script}
         voice={voice}
-        onAudioReady={() => {}}
+        onAudioReady={setAudioUrl}
       />
+
+      {/* DOWNLOAD */}
+      {audioUrl && (
+        <a
+          href={audioUrl}
+          download="archnemix-voice.webm"
+          className="block mt-6 text-purple-400 underline"
+        >
+          Download Audio
+        </a>
+      )}
     </div>
   );
 }
