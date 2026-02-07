@@ -1,71 +1,47 @@
 import { useState } from "react";
-import { generateVideo } from "../api";
-import { checkRateLimit } from "../utils/rateLimit";
 
-type Props = {
+interface Props {
   script: string;
-  audioBase64: string;
-  subtitlesASS: string;
-  background: string;
-  onJobCreated: (jobId: string) => void;
-};
+  voice: string;
+  onAudioReady: (url: string) => void;
+}
 
-export default function GenerateButton({
-  script,
-  audioBase64,
-  subtitlesASS,
-  background,
-  onJobCreated
-}: Props) {
+export default function GenerateButton({ script, voice, onAudioReady }: Props) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  async function handleGenerate() {
-    setError(null);
-
-    // UI rate‑limit
-    const limit = checkRateLimit();
-    if (!limit.allowed) {
-      setError("Daily limit reached. Try again later.");
+  const handleGenerate = () => {
+    if (!script.trim()) {
+      alert("Please enter a script");
       return;
     }
 
-    if (!script || !audioBase64 || !subtitlesASS) {
-      setError("Missing script, audio, or subtitles.");
-      return;
-    }
+    const synth = window.speechSynthesis;
+    const utterance = new SpeechSynthesisUtterance(script);
 
-    try {
-      setLoading(true);
+    const voices = synth.getVoices();
+    const selectedVoice = voices.find(v => v.name === voice);
+    if (selectedVoice) utterance.voice = selectedVoice;
 
-      const res = await generateVideo({
-        audioBase64,
-        subtitlesASS,
-        background
-      });
+    utterance.rate = 1;
+    utterance.pitch = 1;
 
-      onJobCreated(res.job_id);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
-    } finally {
+    setLoading(true);
+
+    utterance.onend = () => {
       setLoading(false);
-    }
-  }
+    };
+
+    synth.cancel();
+    synth.speak(utterance);
+  };
 
   return (
-    <div className="flex flex-col gap-3">
-      <button
-        onClick={handleGenerate}
-        disabled={loading}
-        className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50
-                   text-white font-semibold py-3 rounded-xl transition"
-      >
-        {loading ? "Generating..." : "Generate Video"}
-      </button>
-
-      {error && (
-        <p className="text-sm text-red-400 text-center">{error}</p>
-      )}
-    </div>
+    <button
+      onClick={handleGenerate}
+      disabled={loading}
+      className="bg-purple-600 hover:bg-purple-700 transition px-6 py-3 rounded-xl font-semibold mt-4"
+    >
+      {loading ? "Generating..." : "Generate Voice"}
+    </button>
   );
 }
