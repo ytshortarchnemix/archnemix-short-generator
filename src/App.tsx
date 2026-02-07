@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import GenerateButton from "./components/GenerateButton";
 import { generateASS } from "./utils/assSubtitles";
 
@@ -7,9 +7,7 @@ export default function App() {
   const [voice, setVoice] = useState("");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [assFile, setAssFile] = useState<string | null>(null);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [assFile, setAssFile] = useState<string>("");
 
   useEffect(() => {
     const loadVoices = () => {
@@ -19,16 +17,44 @@ export default function App() {
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }, []);
 
+  const handleAudioReady = (url: string) => {
+    setAudioUrl(url);
+
+    const audio = new Audio(url);
+    audio.onloadedmetadata = () => {
+      const duration = audio.duration;
+
+      if (!duration || isNaN(duration)) {
+        console.error("❌ Invalid audio duration");
+        return;
+      }
+
+      const ass = generateASS(script, duration);
+      console.log("✅ ASS GENERATED:\n", ass);
+
+      setAssFile(ass);
+    };
+  };
+
   const downloadASS = () => {
-    if (!assFile) return;
-    const blob = new Blob([assFile], { type: "text/plain" });
+    if (!assFile.trim()) {
+      alert("Subtitles not ready yet");
+      return;
+    }
+
+    const blob = new Blob([assFile], {
+      type: "text/plain;charset=utf-8",
+    });
+
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = "subtitles.ass";
+    a.download = "archnemix_subtitles.ass";
+    document.body.appendChild(a);
     a.click();
 
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
@@ -38,55 +64,41 @@ export default function App() {
         Archnemix Shorts Generator
       </h1>
 
-      {/* SCRIPT */}
       <textarea
         className="w-full p-4 text-black rounded-lg mb-4"
         rows={6}
         placeholder="Enter Shorts script..."
         value={script}
-        onChange={e => setScript(e.target.value)}
+        onChange={(e) => setScript(e.target.value)}
       />
 
-      {/* VOICE */}
       <select
         className="w-full p-3 text-black rounded-lg mb-4"
         value={voice}
-        onChange={e => setVoice(e.target.value)}
+        onChange={(e) => setVoice(e.target.value)}
       >
         <option value="">Select voice</option>
-        {voices.map(v => (
+        {voices.map((v) => (
           <option key={v.name} value={v.name}>
             {v.name}
           </option>
         ))}
       </select>
 
-      {/* GENERATE AUDIO */}
       <GenerateButton
         script={script}
         voice={voice}
-        onAudioReady={(url) => {
-          setAudioUrl(url);
-
-          const audio = new Audio(url);
-          audio.onloadedmetadata = () => {
-            const ass = generateASS(script, audio.duration);
-            setAssFile(ass);
-          };
-        }}
+        onAudioReady={handleAudioReady}
       />
 
-      {/* AUDIO */}
       {audioUrl && (
         <audio
-          ref={audioRef}
           src={audioUrl}
           controls
           className="mt-6 w-full"
         />
       )}
 
-      {/* DOWNLOAD SUBS */}
       {assFile && (
         <button
           onClick={downloadASS}
