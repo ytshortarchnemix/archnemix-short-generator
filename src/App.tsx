@@ -1,20 +1,40 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import GenerateButton from "./components/GenerateButton";
+import { generateSubtitles, SubtitleLine } from "./utils/subtitles";
 
 export default function App() {
   const [script, setScript] = useState("");
   const [voice, setVoice] = useState("");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [subs, setSubs] = useState<SubtitleLine[]>([]);
+  const [currentSub, setCurrentSub] = useState<string>("");
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const loadVoices = () => {
       setVoices(window.speechSynthesis.getVoices());
     };
-
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }, []);
+
+  // ⏱ Sync subtitles with audio playback
+  useEffect(() => {
+    if (!audioRef.current) return;
+
+    const audio = audioRef.current;
+
+    const onTimeUpdate = () => {
+      const t = audio.currentTime;
+      const line = subs.find(s => t >= s.start && t <= s.end);
+      setCurrentSub(line ? line.text : "");
+    };
+
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    return () => audio.removeEventListener("timeupdate", onTimeUpdate);
+  }, [subs]);
 
   return (
     <div className="min-h-screen bg-black text-white p-8 max-w-3xl mx-auto">
@@ -49,18 +69,32 @@ export default function App() {
       <GenerateButton
         script={script}
         voice={voice}
-        onAudioReady={setAudioUrl}
+        onAudioReady={(url) => {
+          setAudioUrl(url);
+
+          const audio = new Audio(url);
+          audio.onloadedmetadata = () => {
+            const subtitles = generateSubtitles(script, audio.duration);
+            setSubs(subtitles);
+          };
+        }}
       />
 
-      {/* DOWNLOAD */}
+      {/* AUDIO PLAYER */}
       {audioUrl && (
-        <a
-          href={audioUrl}
-          download="archnemix-voice.webm"
-          className="block mt-6 text-purple-400 underline"
-        >
-          Download Audio
-        </a>
+        <>
+          <audio
+            ref={audioRef}
+            src={audioUrl}
+            controls
+            className="mt-6 w-full"
+          />
+
+          {/* SUBTITLES DISPLAY */}
+          <div className="mt-6 text-center text-xl font-semibold bg-black/70 p-4 rounded-lg">
+            {currentSub}
+          </div>
+        </>
       )}
     </div>
   );
