@@ -1,35 +1,51 @@
-// src/api.ts
+const API_BASE = import.meta.env.VITE_API_BASE!;
+const APP_KEY = import.meta.env.VITE_APP_KEY!;
 
-const API_BASE = "https://ytshrt-archx-mc-1.hf.space"; 
-// 👆 replace with your HF Space URL if different
-
-const APP_KEY = import.meta.env.VITE_APP_KEY;
-
-if (!APP_KEY) {
-  console.warn("⚠ VITE_APP_KEY not set");
+export interface GenerateResponse {
+  job_id: string;
+  status: string;
+  download_url: string;
 }
 
-export async function generateVideo(params: {
-  audioBase64: string;
-  subtitlesASS: string;
+/**
+ * Start video generation
+ */
+export async function generateVideo(payload: {
+  audio_base64: string;
+  subtitles_ass: string;
   background: string;
-}): Promise<{ job_id: string }> {
+}): Promise<GenerateResponse> {
   const res = await fetch(`${API_BASE}/generate`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-APP-KEY": APP_KEY
+      "X-APP-KEY": APP_KEY,
     },
-    body: JSON.stringify({
-      audio_base64: params.audioBase64,
-      subtitles_ass: params.subtitlesASS,
-      background: params.background
-    })
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Generation failed");
+    throw new Error("Generation failed");
+  }
+
+  return res.json();
+}
+
+/**
+ * Check job status
+ */
+export async function checkStatus(jobId: string): Promise<{
+  status: string;
+  download_url?: string;
+}> {
+  const res = await fetch(`${API_BASE}/status/${jobId}`, {
+    headers: {
+      "X-APP-KEY": APP_KEY,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Status check failed");
   }
 
   return res.json();
