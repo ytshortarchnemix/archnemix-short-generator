@@ -1,6 +1,6 @@
 // ArchNemix Shorts Generator - Complete Application Logic
 // Configuration - UPDATE THESE WITH YOUR ACTUAL VALUES
-const API_URL = "https://ytshortmakerarchx-ytshrt_archx_mc_1.hf.space"; // Your HF Space URL
+const API_URL = "https://ytshortmakerarchx-ytshrt-archx-mc-1.hf.space"; // Your HF Space URL
 const APP_KEY = "archx_3f9d15f52n48d41h5fj8a7e2b_private"; // Same as in backend secrets
 
 // Application State
