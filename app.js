@@ -80,9 +80,11 @@ async function initApplication() {
 
 async function checkBackendConnection() {
     try {
-        const response = await fetch(`${API_URL}/health`);
+        // Use the root endpoint instead of /health
+        const response = await fetch(`${API_URL}/`);
         if (response.ok) {
             console.log('✅ ArchNemix Backend: Connected');
+            showToast('ArchNemix AI Connected', 'success');
             return true;
         } else {
             throw new Error('Backend not responding properly');
@@ -969,9 +971,9 @@ window.debugState = () => {
 
 window.testBackend = async () => {
     try {
-        const response = await fetch(`${API_URL}/health`);
+        const response = await fetch(`${API_URL}/`);
         const data = await response.json();
-        console.log('✅ Backend Health:', data);
+        console.log('✅ Backend Status:', data);
         showToast(`Backend: ${data.status}`, 'success');
         return data;
     } catch (error) {
