@@ -1,6 +1,7 @@
-// ArchNemix Shorts Generator - Complete Working Application
+// ArchNemix Shorts Generator - Complete Working Application with Real TTS
 // Configuration
 const API_URL = "https://ytshortmakerarchx-ytshrt-archx-mc-1.hf.space";
+const TTS_API = "https://ytshortmakerarchx-piper-tts-male-01.hf.space";
 const APP_KEY = "archx_3f9d15f52n48d41h5fj8a7e2b_private";
 
 // Application State
@@ -16,8 +17,7 @@ const state = {
     voices: [],
     jobPollInterval: null,
     isProcessing: false,
-    mediaRecorder: null,
-    audioChunks: []
+    availableTTSVoices: []
 };
 
 // Toast Notification System
@@ -185,46 +185,59 @@ function updateStepContent() {
 }
 
 async function initializeVoices() {
-    if (!('speechSynthesis' in window)) {
-        document.getElementById('voiceSelect').innerHTML = 
-            '<option value="">Speech synthesis not available</option>';
-        Toast.show('Browser TTS not supported', 'warning');
-        return;
-    }
-    
-    const loadVoices = () => {
-        const voices = speechSynthesis.getVoices();
-        if (voices.length === 0) return;
+    try {
+        console.log('Loading voices from TTS API...');
+        
+        // Load voices from Piper TTS Space
+        const response = await fetch(`${TTS_API}/voices`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to load voices from TTS API');
+        }
+        
+        const data = await response.json();
+        state.availableTTSVoices = data.voices || [];
         
         const select = document.getElementById('voiceSelect');
-        select.innerHTML = '<option value="">Select Voice</option>';
+        select.innerHTML = '';
         
-        // Group voices by language
-        const englishVoices = voices.filter(v => v.lang.startsWith('en-'));
-        const otherVoices = voices.filter(v => !v.lang.startsWith('en-'));
-        
-        if (englishVoices.length > 0) {
-            englishVoices.forEach(voice => {
+        if (state.availableTTSVoices.length > 0) {
+            state.availableTTSVoices.forEach(voice => {
                 const option = document.createElement('option');
-                option.value = voice.name;
-                option.textContent = `${voice.name.replace('Microsoft ', '').replace('Google ', '')} (${voice.lang})`;
+                option.value = voice.id;
+                option.textContent = voice.name;
                 select.appendChild(option);
             });
             
-            // Auto-select first English voice
-            select.value = englishVoices[0].name;
+            // Auto-select first voice
+            select.value = state.availableTTSVoices[0].id;
+            
+            console.log(`✅ Loaded ${state.availableTTSVoices.length} TTS voices`);
+            Toast.show(`${state.availableTTSVoices.length} voices loaded`, 'success');
+        } else {
+            select.innerHTML = '<option value="">No voices available</option>';
+            Toast.show('No TTS voices found', 'warning');
         }
         
-        state.voices = voices;
-        console.log(`Loaded ${voices.length} voices, ${englishVoices.length} English`);
-    };
-    
-    // Load voices
-    loadVoices();
-    
-    // Some browsers load voices async
-    if (speechSynthesis.getVoices().length === 0) {
-        speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    } catch (error) {
+        console.error('Failed to load TTS voices:', error);
+        
+        // Fallback to default voice
+        const select = document.getElementById('voiceSelect');
+        select.innerHTML = `
+            <option value="ryan">Ryan - American Male (Clear)</option>
+            <option value="joe">Joe - American Male (Deep)</option>
+            <option value="libritts">Libritts - American Male (Neutral)</option>
+        `;
+        select.value = 'ryan';
+        
+        state.availableTTSVoices = [
+            { id: 'ryan', name: 'Ryan - American Male (Clear)' },
+            { id: 'joe', name: 'Joe - American Male (Deep)' },
+            { id: 'libritts', name: 'Libritts - American Male (Neutral)' }
+        ];
+        
+        Toast.show('Using default voices', 'warning');
     }
 }
 
@@ -300,17 +313,17 @@ function renderVideoGrid(videoList) {
     }
 }
 
-// ============== REAL AUDIO GENERATION ==============
+// ============== REAL AUDIO GENERATION WITH PIPER TTS ==============
 async function generateAudio() {
     if (!state.script.trim()) {
         Toast.show('Please enter a script first', 'error');
         return;
     }
     
-    const voiceName = document.getElementById('voiceSelect').value;
+    const voiceId = document.getElementById('voiceSelect').value;
     const rate = parseFloat(document.getElementById('rateSlider').value);
     
-    if (!voiceName) {
+    if (!voiceId) {
         Toast.show('Please select a voice', 'error');
         return;
     }
@@ -320,7 +333,7 @@ async function generateAudio() {
     const audioBtn = document.getElementById('generateAudioBtn');
     const audioPreview = document.getElementById('audioPreview');
     
-    audioStatus.innerHTML = `<i class="fas fa-robot"></i> Generating AI voiceover...`;
+    audioStatus.innerHTML = `<i class="fas fa-robot"></i> Generating AI voiceover with Piper TTS...`;
     audioStatus.className = 'status-message';
     
     audioBtn.disabled = true;
@@ -331,14 +344,18 @@ async function generateAudio() {
     document.getElementById('prevStep2').disabled = true;
     
     try {
-        // Generate real audio using Web Speech API
-        await generateRealAudio(state.script, voiceName, rate);
+        // Generate real audio using Piper TTS API
+        console.log('🎙️ Calling Piper TTS API...');
+        console.log('Voice:', voiceId, 'Rate:', rate, 'Text length:', state.script.length);
+        
+        await generateRealAudio(state.script, voiceId, rate);
         
         // Generate subtitles
+        console.log('📝 Generating subtitles for duration:', state.audioDuration);
         state.subtitlesASS = generateSubtitles(state.script, state.audioDuration);
         
         // Update UI
-        audioStatus.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success);"></i> Audio generated successfully`;
+        audioStatus.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success);"></i> Audio generated successfully (${state.audioDuration.toFixed(1)}s)`;
         audioStatus.className = 'status-message status-success';
         
         document.getElementById('nextStep2').disabled = false;
@@ -356,10 +373,10 @@ async function generateAudio() {
         audioBtn.disabled = false;
         audioBtn.innerHTML = '<i class="fas fa-play"></i> Regenerate Audio';
         
-        Toast.show('Audio generated successfully', 'success');
+        Toast.show(`Audio generated: ${state.audioDuration.toFixed(1)}s`, 'success');
         
     } catch (error) {
-        console.error('Audio generation failed:', error);
+        console.error('❌ Audio generation failed:', error);
         
         audioStatus.innerHTML = `<i class="fas fa-exclamation-circle" style="color: var(--error);"></i> ${error.message}`;
         audioStatus.className = 'status-message status-error';
@@ -368,149 +385,78 @@ async function generateAudio() {
         audioBtn.innerHTML = '<i class="fas fa-play"></i> Generate Audio';
         document.getElementById('prevStep2').disabled = false;
         
-        Toast.show('Audio generation failed', 'error');
+        Toast.show('Audio generation failed: ' + error.message, 'error', 5000);
     }
 }
 
-async function generateRealAudio(text, voiceName, rate) {
+async function generateRealAudio(text, voiceId, rate) {
     return new Promise(async (resolve, reject) => {
         try {
-            console.log('Starting audio generation with Web Speech API...');
+            console.log(`Calling TTS API: ${TTS_API}/tts`);
             
-            // Create utterance
-            const utterance = new SpeechSynthesisUtterance(text);
-            const voice = state.voices.find(v => v.name === voiceName);
+            // Call Piper TTS Space API
+            const response = await fetch(`${TTS_API}/tts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    text: text,
+                    voice: voiceId,
+                    rate: rate
+                })
+            });
             
-            if (voice) {
-                utterance.voice = voice;
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('TTS API error:', response.status, errorText);
+                
+                let errorMsg = 'TTS generation failed';
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    errorMsg = errorJson.detail || errorMsg;
+                } catch (e) {
+                    errorMsg = `TTS API error: ${response.status}`;
+                }
+                
+                throw new Error(errorMsg);
             }
             
-            utterance.rate = rate;
-            utterance.pitch = 1.0;
-            utterance.volume = 1.0;
+            const data = await response.json();
             
-            // Calculate estimated duration (rough estimate)
-            const words = text.split(/\s+/).length;
-            const estimatedDuration = (words / (rate * 2.5)) + 1; // words per second adjusted by rate
-            state.audioDuration = estimatedDuration;
+            console.log('✅ TTS API response received');
+            console.log('Duration:', data.duration, 'Audio format:', data.audio_format);
             
-            // For Web Speech API, we need to record the output
-            // Since we can't directly capture browser TTS, we'll use a workaround
+            // Store duration
+            state.audioDuration = data.duration;
             
-            // Start audio context for recording
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            const audioContext = new AudioContext();
-            const destination = audioContext.createMediaStreamDestination();
+            // Store base64 audio
+            state.audioBase64 = data.audio_base64;
             
-            // Try to capture system audio (this is limited in browsers)
-            // Alternative: Use the estimation method with silent audio for backend
+            // Create blob for preview
+            const audioBytes = atob(data.audio_base64);
+            const audioArray = new Uint8Array(audioBytes.length);
+            for (let i = 0; i < audioBytes.length; i++) {
+                audioArray[i] = audioBytes.charCodeAt(i);
+            }
             
-            // WORKAROUND: Generate audio blob from TTS
-            // This is a simplified approach - for production, use a real TTS API
+            const mimeType = data.audio_format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+            state.audioBlob = new Blob([audioArray], { type: mimeType });
             
-            utterance.onstart = () => {
-                console.log('TTS started');
-            };
+            // Update audio preview
+            const audioPreview = document.getElementById('audioPreview');
+            const blobUrl = URL.createObjectURL(state.audioBlob);
+            audioPreview.src = blobUrl;
             
-            utterance.onend = async () => {
-                console.log('TTS ended');
-                
-                // Create audio blob (we'll use a simple WAV with estimated duration)
-                // For real production, integrate with ElevenLabs, Google TTS, etc.
-                const audioBlob = await createAudioBlobFromTTS(text, estimatedDuration);
-                state.audioBlob = audioBlob;
-                
-                // Convert to base64
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const result = reader.result;
-                    if (result.startsWith('data:audio/')) {
-                        state.audioBase64 = result.split(',')[1];
-                    } else {
-                        state.audioBase64 = btoa(result);
-                    }
-                    
-                    // Update preview
-                    const audioPreview = document.getElementById('audioPreview');
-                    audioPreview.src = URL.createObjectURL(audioBlob);
-                    
-                    console.log(`Audio blob created: ${audioBlob.size} bytes, duration: ${estimatedDuration}s`);
-                    resolve();
-                };
-                reader.onerror = () => {
-                    reject(new Error('Failed to convert audio to base64'));
-                };
-                reader.readAsDataURL(audioBlob);
-            };
+            console.log(`✅ Audio blob created: ${state.audioBlob.size} bytes, ${state.audioDuration}s`);
             
-            utterance.onerror = (event) => {
-                console.error('TTS error:', event);
-                reject(new Error('Speech synthesis failed'));
-            };
-            
-            // Speak
-            speechSynthesis.cancel(); // Cancel any ongoing speech
-            speechSynthesis.speak(utterance);
+            resolve();
             
         } catch (error) {
-            console.error('Audio generation error:', error);
+            console.error('TTS generation error:', error);
             reject(error);
         }
     });
-}
-
-async function createAudioBlobFromTTS(text, duration) {
-    // Create a simple WAV file with the estimated duration
-    // This is a placeholder - for production, use real TTS API
-    
-    const sampleRate = 44100;
-    const numChannels = 1;
-    const bitsPerSample = 16;
-    const numSamples = Math.floor(duration * sampleRate);
-    const blockAlign = numChannels * bitsPerSample / 8;
-    const byteRate = sampleRate * blockAlign;
-    const dataSize = numSamples * blockAlign;
-    
-    const buffer = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(buffer);
-    
-    // WAV header
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, true);
-    writeString(view, 8, 'WAVE');
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true); // PCM format
-    view.setUint16(20, 1, true); // Audio format (PCM)
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitsPerSample, true);
-    writeString(view, 36, 'data');
-    view.setUint32(40, dataSize, true);
-    
-    // Generate simple tone (placeholder for real audio)
-    // This creates a low-frequency tone to simulate voice
-    const frequency = 150; // Hz
-    for (let i = 0; i < numSamples; i++) {
-        const t = i / sampleRate;
-        // Create a simple envelope to avoid clicks
-        const envelope = Math.min(1, Math.min(t * 10, (duration - t) * 10));
-        // Mix of frequencies to simulate voice
-        const sample = Math.sin(2 * Math.PI * frequency * t) * 0.3 +
-                      Math.sin(2 * Math.PI * frequency * 2 * t) * 0.2 +
-                      Math.sin(2 * Math.PI * frequency * 3 * t) * 0.1;
-        const value = Math.floor(sample * envelope * 32767);
-        view.setInt16(44 + i * 2, value, true);
-    }
-    
-    return new Blob([buffer], { type: 'audio/wav' });
-}
-
-function writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-    }
 }
 
 function generateSubtitles(text, duration) {
@@ -566,7 +512,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         currentTime += timePerLine;
     });
     
-    console.log('Generated ASS subtitles:', assContent.split('\n').length, 'lines');
+    console.log('Generated ASS subtitles:', lines.length, 'lines');
     return assContent;
 }
 
@@ -843,11 +789,6 @@ function resetApplication() {
         state.jobPollInterval = null;
     }
     
-    // Cancel any ongoing speech
-    if (window.speechSynthesis) {
-        speechSynthesis.cancel();
-    }
-    
     // Reset state
     state.audioBlob = null;
     state.audioDuration = 0;
@@ -857,7 +798,6 @@ function resetApplication() {
     state.audioBase64 = "";
     state.script = "";
     state.isProcessing = false;
-    state.audioChunks = [];
     
     // Reset UI
     document.getElementById('scriptInput').value = '';
@@ -909,30 +849,60 @@ window.debugState = () => {
         subsSize: state.subtitlesASS.length,
         selectedVideo: state.selectedVideo,
         currentJob: state.currentJobId,
-        isProcessing: state.isProcessing
+        isProcessing: state.isProcessing,
+        availableVoices: state.availableTTSVoices.length
     });
     return state;
 };
 
 window.testBackend = async () => {
     try {
-        const endpoints = ['/', '/health', '/videos/minecraft'];
-        const results = {};
+        const results = {
+            tts: {},
+            video: {}
+        };
         
-        for (const endpoint of endpoints) {
+        // Test TTS API
+        console.log('Testing TTS API...');
+        try {
+            const ttsResponse = await fetch(`${TTS_API}/`);
+            results.tts.root = {
+                status: ttsResponse.status,
+                ok: ttsResponse.ok
+            };
+            if (ttsResponse.ok) {
+                results.tts.root.data = await ttsResponse.json();
+            }
+            
+            const voicesResponse = await fetch(`${TTS_API}/voices`);
+            results.tts.voices = {
+                status: voicesResponse.status,
+                ok: voicesResponse.ok
+            };
+            if (voicesResponse.ok) {
+                results.tts.voices.data = await voicesResponse.json();
+            }
+        } catch (error) {
+            results.tts.error = error.message;
+        }
+        
+        // Test Video API
+        console.log('Testing Video API...');
+        const videoEndpoints = ['/', '/health', '/videos/minecraft'];
+        for (const endpoint of videoEndpoints) {
             try {
                 const response = await fetch(`${API_URL}${endpoint}`);
-                results[endpoint] = {
+                results.video[endpoint] = {
                     status: response.status,
                     ok: response.ok
                 };
                 
                 if (response.ok) {
                     const data = await response.json();
-                    results[endpoint].data = data;
+                    results.video[endpoint].data = data;
                 }
             } catch (error) {
-                results[endpoint] = { error: error.message };
+                results.video[endpoint] = { error: error.message };
             }
         }
         
@@ -947,5 +917,40 @@ window.testBackend = async () => {
     }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v3.0 Loaded');
-console.log('📝 Available commands: debugState(), testBackend()');
+window.testTTS = async (text = "Hello world, this is a test.") => {
+    try {
+        console.log('Testing TTS with text:', text);
+        
+        const response = await fetch(`${TTS_API}/tts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: text,
+                voice: 'ryan',
+                rate: 1.0
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`TTS failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ TTS Test Success:', data);
+        
+        // Play the audio
+        const audio = new Audio('data:audio/wav;base64,' + data.audio_base64);
+        audio.play();
+        
+        Toast.show('TTS test successful', 'success');
+        return data;
+        
+    } catch (error) {
+        console.error('TTS test failed:', error);
+        Toast.show('TTS test failed', 'error');
+        return null;
+    }
+};
+
+console.log('🚀 ArchNemix Shorts Generator v4.0 with Real TTS Loaded');
+console.log('📝 Available commands: debugState(), testBackend(), testTTS()');
