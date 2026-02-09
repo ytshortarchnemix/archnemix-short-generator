@@ -234,7 +234,7 @@
         }
         
         textarea {
-            min-height: 150px;
+            min-height: 200px;
             resize: vertical;
         }
         
@@ -542,15 +542,15 @@
                 <h2>Craft Your Narrative</h2>
             </div>
             <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
-                Write the story you want to tell. Our AI will transform it into a compelling voiceover.
+                Write the story you want to tell. Our AI will transform it into a compelling voiceover. Perfect for Reddit stories, facts, motivational content, and more.
             </p>
             <div class="form-group">
-                <label for="scriptInput">Your Script</label>
+                <label for="scriptInput">Your Script (Up to 3500 characters for ~3 minute shorts)</label>
                 <textarea id="scriptInput" placeholder="Enter your script here...
 
 Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content creation. With our AI-powered platform, you can transform simple text into viral YouTube Shorts in minutes. No editing skills required. Just pure creativity amplified by technology. Let's create something amazing together."></textarea>
                 <div class="char-counter" id="charCounter">
-                    <span id="charCount">0</span> / 450 characters
+                    <span id="charCount">0</span> / 3500 characters
                 </div>
             </div>
             <div class="button-group">
@@ -609,7 +609,7 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
                 <!-- Videos loaded dynamically -->
             </div>
             <div class="status-message" id="subtitlePreview">
-                <i class="fas fa-closed-captioning"></i> Subtitles will be generated automatically with perfect timing
+                <i class="fas fa-closed-captioning"></i> Subtitles will be generated automatically with perfect timing (centered in middle of screen)
             </div>
             <div class="button-group">
                 <button id="prevStep3" class="btn btn-secondary">
@@ -628,7 +628,7 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
                 <h2>Generate Your Short</h2>
             </div>
             <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
-                Review your settings and create your video. Processing typically takes 30-60 seconds.
+                Review your settings and create your video. Processing typically takes 30-180 seconds depending on length.
             </p>
             
             <!-- Settings Summary -->
@@ -712,7 +712,7 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
         </div>
         <div>
             <p style="color: var(--text-secondary); font-size: 0.8rem;">
-                Rate limited to 3 videos per hour • Videos are automatically deleted after 1 hour
+                Rate limited to 3 videos per hour • Videos are automatically deleted after 1 hour • Max 3500 characters / 3 minutes
             </p>
         </div>
     </footer>
