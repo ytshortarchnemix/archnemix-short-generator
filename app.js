@@ -145,9 +145,10 @@ function handleScriptInput(e) {
     document.getElementById('charCount').textContent = count;
     charCounter.className = 'char-counter';
     
-    if (count > 400 && count <= 450) {
+    // Updated thresholds for 3500 char limit
+    if (count > 3000 && count <= 3300) {
         charCounter.classList.add('warning');
-    } else if (count > 450) {
+    } else if (count > 3300) {
         charCounter.classList.add('error');
     }
     
@@ -460,14 +461,17 @@ async function generateRealAudio(text, voiceId, rate) {
 }
 
 function generateSubtitles(text, duration) {
-    // Split text into optimal lines for Shorts (max 35 chars per line)
+    // Split text into optimal lines for Shorts - MAX 2 LINES ON SCREEN
     const words = text.split(/\s+/);
     const lines = [];
     let currentLine = [];
     let currentLength = 0;
     
+    // Max 30 characters per line for better readability in portrait mode
+    const MAX_CHARS_PER_LINE = 30;
+    
     for (const word of words) {
-        if (currentLength + word.length + 1 > 35 && currentLine.length > 0) {
+        if (currentLength + word.length + 1 > MAX_CHARS_PER_LINE && currentLine.length > 0) {
             lines.push(currentLine.join(' '));
             currentLine = [word];
             currentLength = word.length;
@@ -481,11 +485,23 @@ function generateSubtitles(text, duration) {
         lines.push(currentLine.join(' '));
     }
     
-    // Calculate timing
-    const totalLines = lines.length;
-    const timePerLine = duration / Math.max(1, totalLines);
+    // Group lines into pairs (2 lines max on screen at once)
+    const linePairs = [];
+    for (let i = 0; i < lines.length; i += 2) {
+        if (i + 1 < lines.length) {
+            // Two lines together
+            linePairs.push(lines[i] + '\\N' + lines[i + 1]);
+        } else {
+            // Single line (last one)
+            linePairs.push(lines[i]);
+        }
+    }
     
-    // Generate ASS subtitles
+    // Calculate timing
+    const totalPairs = linePairs.length;
+    const timePerPair = duration / Math.max(1, totalPairs);
+    
+    // Generate ASS subtitles with MIDDLE positioning
     let assContent = `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
@@ -494,25 +510,25 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,72,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,3,1,2,50,50,150,1
+Style: Default,Arial,68,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,3,2,5,50,50,960,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
     
     let currentTime = 0;
-    lines.forEach((line, index) => {
+    linePairs.forEach((linePair, index) => {
         const start = formatASSTime(currentTime);
-        const end = formatASSTime(currentTime + timePerLine);
+        const end = formatASSTime(currentTime + timePerPair);
         
         // Escape special characters for ASS format
-        const escapedLine = line.replace(/\\/g, '\\\\').replace(/\n/g, '\\N');
+        const escapedLine = linePair.replace(/\\/g, '\\\\');
         
         assContent += `Dialogue: 0,${start},${end},Default,,0,0,0,,${escapedLine}\n`;
-        currentTime += timePerLine;
+        currentTime += timePerPair;
     });
     
-    console.log('Generated ASS subtitles:', lines.length, 'lines');
+    console.log(`Generated ASS subtitles: ${linePairs.length} subtitle blocks (2 lines each)`);
     return assContent;
 }
 
@@ -952,5 +968,5 @@ window.testTTS = async (text = "Hello world, this is a test.") => {
     }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v4.0 with Real TTS Loaded');
+console.log('🚀 ArchNemix Shorts Generator v4.1 - 3500 char limit + Middle subtitles');
 console.log('📝 Available commands: debugState(), testBackend(), testTTS()');
