@@ -4,6 +4,7 @@ const API_URL = "https://ytshortmakerarchx-ytshrt-archx-mc-1.hf.space";
 const TTS_API = "https://ytshortmakerarchx-piper-tts-male-01.hf.space";
 const APP_KEY = "archx_3f9d15f52n48d41h5fj8a7e2b_private";
 
+
 // Application State
 const state = {
     currentStep: 1,
