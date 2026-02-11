@@ -105,17 +105,14 @@ async function initializeApplication() {
 }
 
 function setupEventListeners() {
-    // Script input handling
     const scriptInput = document.getElementById('scriptInput');
     scriptInput.addEventListener('input', handleScriptInput);
     
-    // Rate slider
     const rateSlider = document.getElementById('rateSlider');
     rateSlider.addEventListener('input', (e) => {
         document.getElementById('rateValue').textContent = e.target.value;
     });
     
-    // Step navigation
     document.getElementById('nextStep1').addEventListener('click', () => goToStep(2));
     document.getElementById('prevStep2').addEventListener('click', () => goToStep(1));
     document.getElementById('nextStep2').addEventListener('click', () => goToStep(3));
@@ -123,12 +120,10 @@ function setupEventListeners() {
     document.getElementById('nextStep3').addEventListener('click', () => goToStep(4));
     document.getElementById('prevStep4').addEventListener('click', () => goToStep(3));
     
-    // Action buttons
     document.getElementById('generateAudioBtn').addEventListener('click', generateAudio);
     document.getElementById('generateVideoBtn').addEventListener('click', generateVideo);
     document.getElementById('newVideoBtn').addEventListener('click', resetApplication);
     
-    // Audio preview events
     const audioPreview = document.getElementById('audioPreview');
     audioPreview.addEventListener('loadedmetadata', () => {
         state.audioDuration = audioPreview.duration || state.audioDuration;
@@ -145,7 +140,6 @@ function handleScriptInput(e) {
     document.getElementById('charCount').textContent = count;
     charCounter.className = 'char-counter';
     
-    // Updated thresholds for 3500 char limit
     if (count > 3000 && count <= 3300) {
         charCounter.classList.add('warning');
     } else if (count > 3300) {
@@ -189,7 +183,6 @@ async function initializeVoices() {
     try {
         console.log('Loading voices from TTS API...');
         
-        // Load voices from Piper TTS Space
         const response = await fetch(`${TTS_API}/voices`);
         
         if (!response.ok) {
@@ -210,7 +203,6 @@ async function initializeVoices() {
                 select.appendChild(option);
             });
             
-            // Auto-select first voice
             select.value = state.availableTTSVoices[0].id;
             
             console.log(`✅ Loaded ${state.availableTTSVoices.length} TTS voices`);
@@ -223,7 +215,6 @@ async function initializeVoices() {
     } catch (error) {
         console.error('Failed to load TTS voices:', error);
         
-        // Fallback to default voice
         const select = document.getElementById('voiceSelect');
         select.innerHTML = `
             <option value="ryan">Ryan - American Male (Clear)</option>
@@ -307,7 +298,6 @@ function renderVideoGrid(videoList) {
         grid.appendChild(item);
     });
     
-    // Auto-select first video
     const firstVideo = grid.querySelector('.video-card');
     if (firstVideo) {
         setTimeout(() => firstVideo.click(), 100);
@@ -329,7 +319,6 @@ async function generateAudio() {
         return;
     }
     
-    // Update UI state
     const audioStatus = document.getElementById('audioStatus');
     const audioBtn = document.getElementById('generateAudioBtn');
     const audioPreview = document.getElementById('audioPreview');
@@ -345,24 +334,20 @@ async function generateAudio() {
     document.getElementById('prevStep2').disabled = true;
     
     try {
-        // Generate real audio using Piper TTS API
         console.log('🎙️ Calling Piper TTS API...');
         console.log('Voice:', voiceId, 'Rate:', rate, 'Text length:', state.script.length);
         
         await generateRealAudio(state.script, voiceId, rate);
         
-        // Generate subtitles
         console.log('📝 Generating subtitles for duration:', state.audioDuration);
         state.subtitlesASS = generateSubtitles(state.script, state.audioDuration);
         
-        // Update UI
         audioStatus.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success);"></i> Audio generated successfully (${state.audioDuration.toFixed(1)}s)`;
         audioStatus.className = 'status-message status-success';
         
         document.getElementById('nextStep2').disabled = false;
         document.getElementById('prevStep2').disabled = false;
         
-        // Update subtitle preview
         const preview = document.getElementById('subtitlePreview');
         const words = state.script.split(/\s+/).length;
         preview.innerHTML = `
@@ -395,7 +380,6 @@ async function generateRealAudio(text, voiceId, rate) {
         try {
             console.log(`Calling TTS API: ${TTS_API}/tts`);
             
-            // Call Piper TTS Space API
             const response = await fetch(`${TTS_API}/tts`, {
                 method: 'POST',
                 headers: {
@@ -428,13 +412,9 @@ async function generateRealAudio(text, voiceId, rate) {
             console.log('✅ TTS API response received');
             console.log('Duration:', data.duration, 'Audio format:', data.audio_format);
             
-            // Store duration
             state.audioDuration = data.duration;
-            
-            // Store base64 audio
             state.audioBase64 = data.audio_base64;
             
-            // Create blob for preview
             const audioBytes = atob(data.audio_base64);
             const audioArray = new Uint8Array(audioBytes.length);
             for (let i = 0; i < audioBytes.length; i++) {
@@ -444,7 +424,6 @@ async function generateRealAudio(text, voiceId, rate) {
             const mimeType = data.audio_format === 'wav' ? 'audio/wav' : 'audio/mpeg';
             state.audioBlob = new Blob([audioArray], { type: mimeType });
             
-            // Update audio preview
             const audioPreview = document.getElementById('audioPreview');
             const blobUrl = URL.createObjectURL(state.audioBlob);
             audioPreview.src = blobUrl;
@@ -460,85 +439,191 @@ async function generateRealAudio(text, voiceId, rate) {
     });
 }
 
+// ============================================================
+// SUBTITLE GENERATION — CHANGED SECTION
+// Word-by-word timing, special word detection (IPs, URLs, etc.),
+// centered vertically (alignment 5), box shading, 2-line max blocks
+// ============================================================
+
+// Detects special words TTS reads slowly. Returns type string or null.
+function _subDetectSpecial(word) {
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(word))  return 'ip';
+    if (/^https?:\/\//i.test(word))                           return 'url';
+    if (/^www\./i.test(word))                                 return 'url';
+    if (/^localhost$/i.test(word))                            return 'localhost';
+    if (/^[A-Z]{3,}$/.test(word))                            return 'acronym';
+    if (/^\/[\w.\-/]+$/.test(word))                          return 'path';
+    if (/^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$/.test(word))     return 'email';
+    return null;
+}
+
+// Estimates raw speech duration in seconds before proportional scaling.
+function _subEstimateDuration(word, type) {
+    if (type === 'ip') {
+        // "127.0.0.1" → TTS says "one two seven dot zero dot zero dot one"
+        const parts = word.split('.');
+        const dur = parts.reduce((s, p) => s + p.length * 0.28, 0) + (parts.length - 1) * 0.32;
+        return Math.max(dur, 2.0);
+    }
+    if (type === 'url') {
+        return Math.min(word.length * 0.22, 8.0);
+    }
+    if (type === 'localhost') {
+        return 0.85;
+    }
+    if (type === 'acronym') {
+        return word.length * 0.35;
+    }
+    if (type === 'path') {
+        const segs = word.split('/').filter(Boolean);
+        return segs.reduce((s, sg) => s + 0.3 + sg.length * 0.05, 0.2);
+    }
+    if (type === 'email') {
+        return Math.min(word.length * 0.18, 5.0);
+    }
+    // Normal word
+    let dur = 0.38 + word.length * 0.048;
+    if (/[.!?]$/.test(word)) dur += 0.18;  // sentence-end pause
+    if (/[,;:]$/.test(word)) dur += 0.08;  // clause pause
+    return dur;
+}
+
 function generateSubtitles(text, duration) {
-    // Split text into optimal lines for Shorts - MAX 2 LINES ON SCREEN
-    const words = text.split(/\s+/);
+    const rawWords = text.trim().split(/\s+/).filter(w => w.length > 0);
+    if (rawWords.length === 0) return '';
+
+    // ── Step 1: Assign raw duration to every word ──────────────────────────
+    const words = rawWords.map(w => {
+        // Strip surrounding punctuation only for detection, keep original for display
+        const clean = w.replace(/^["""''([{]/, '').replace(/["""'').,!?;:\]}]+$/, '');
+        const type  = _subDetectSpecial(clean);
+        return { text: w, type, rawDur: _subEstimateDuration(clean, type) };
+    });
+
+    // ── Step 2: Scale so the sum of all durations = actual audio length ────
+    const totalRaw = words.reduce((s, w) => s + w.rawDur, 0);
+    const scale    = totalRaw > 0 ? duration / totalRaw : 1;
+
+    let t = 0;
+    words.forEach(w => {
+        w.dur   = w.rawDur * scale;
+        w.start = t;
+        w.end   = t + w.dur;
+        t = w.end;
+    });
+
+    // ── Step 3: Group words into lines (max 22 chars for portrait) ─────────
+    const MAX_CHARS = 22;
     const lines = [];
-    let currentLine = [];
-    let currentLength = 0;
-    
-    // Max 30 characters per line for better readability in portrait mode
-    const MAX_CHARS_PER_LINE = 30;
-    
-    for (const word of words) {
-        if (currentLength + word.length + 1 > MAX_CHARS_PER_LINE && currentLine.length > 0) {
-            lines.push(currentLine.join(' '));
-            currentLine = [word];
-            currentLength = word.length;
+    let curWords = [], curLen = 0;
+
+    for (const w of words) {
+        const addLen = curLen === 0 ? w.text.length : w.text.length + 1;
+        if (addLen + curLen > MAX_CHARS && curWords.length > 0) {
+            lines.push(curWords);
+            curWords = [w];
+            curLen   = w.text.length;
         } else {
-            currentLine.push(word);
-            currentLength += word.length + 1;
+            curWords.push(w);
+            curLen += addLen;
         }
     }
-    
-    if (currentLine.length > 0) {
-        lines.push(currentLine.join(' '));
-    }
-    
-    // Group lines into pairs (2 lines max on screen at once)
-    const linePairs = [];
+    if (curWords.length > 0) lines.push(curWords);
+
+    // ── Step 4: Pair lines into 2-line blocks ──────────────────────────────
+    const blocks = [];
     for (let i = 0; i < lines.length; i += 2) {
-        if (i + 1 < lines.length) {
-            // Two lines together
-            linePairs.push(lines[i] + '\\N' + lines[i + 1]);
-        } else {
-            // Single line (last one)
-            linePairs.push(lines[i]);
-        }
+        const group    = i + 1 < lines.length ? [lines[i], lines[i + 1]] : [lines[i]];
+        const allWords = group.flat();
+        blocks.push({
+            lines:     group,           // array of line arrays (each line = array of word objects)
+            allWords:  allWords,
+            start:     allWords[0].start,
+            end:       allWords[allWords.length - 1].end
+        });
     }
-    
-    // Calculate timing
-    const totalPairs = linePairs.length;
-    const timePerPair = duration / Math.max(1, totalPairs);
-    
-    // Generate ASS subtitles with MIDDLE positioning
-    let assContent = `[Script Info]
+
+    // ── Step 5: Build ASS file with per-word karaoke timing ───────────────
+    //
+    // Strategy: one Dialogue line per WORD in the block.
+    //   - Each dialogue spans exactly that word's start→end time
+    //   - The full 2-line block text is rendered every time (so layout stays stable)
+    //   - The active word is wrapped in {\c&H0000FFFF&} (yellow) + reset {\r} after
+    //   - All other words stay white {\c&H00FFFFFF&}
+    //   - This gives true word-by-word highlighting without needing karaoke-aware renderers
+    //
+    // Key style settings:
+    //   Alignment 5      = middle-center of screen (ASS numpad layout)
+    //   MarginV 0        = true vertical center, no extra offset
+    //   FontSize 72      = readable on 1080×1920 Shorts
+    //   Bold -1          = bold on
+    //   BorderStyle 1    = outline + shadow
+    //   Outline 4        = thick black outline, readable over any background
+    //   Shadow 1         = small drop shadow for depth
+    //   BackColour &H80000000 = semi-transparent black backdrop behind text
+    //   PrimaryColour white  = default word color
+    //
+    const assHeader = `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
 PlayResY: 1920
+ScaledBorderAndShadow: yes
 WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,68,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,3,2,5,50,50,960,1
+Style: Default,Arial,72,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,4,1,5,80,80,0,1
 
 [Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-`;
-    
-    let currentTime = 0;
-    linePairs.forEach((linePair, index) => {
-        const start = formatASSTime(currentTime);
-        const end = formatASSTime(currentTime + timePerPair);
-        
-        // Escape special characters for ASS format
-        const escapedLine = linePair.replace(/\\/g, '\\\\');
-        
-        assContent += `Dialogue: 0,${start},${end},Default,,0,0,0,,${escapedLine}\n`;
-        currentTime += timePerPair;
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
+
+    // Color tags (ASS uses BGR hex, not RGB)
+    const WHITE  = '{\\c&H00FFFFFF&}';  // white  — inactive words
+    const YELLOW = '{\\c&H0000FFFF&}';  // yellow — active word
+    const RESET  = '{\\r}';             // reset to style default after highlighted word
+
+    const dialogueLines = [];
+
+    blocks.forEach(block => {
+        block.allWords.forEach(activeWord => {
+            // Build the full text of the block, word by word,
+            // highlighting only the current activeWord in yellow
+            const lineStrings = block.lines.map(line => {
+                return line.map(w => {
+                    if (w === activeWord) {
+                        // Highlight this word in yellow, then reset color for the rest
+                        return `${YELLOW}${w.text}${RESET}${WHITE}`;
+                    }
+                    return `${WHITE}${w.text}`;
+                }).join(' ');
+            });
+
+            const fullText = lineStrings.join('\\N');
+
+            // This dialogue line is visible only during this word's time window
+            dialogueLines.push(
+                `Dialogue: 0,${formatASSTime(activeWord.start)},${formatASSTime(activeWord.end)},Default,,0,0,0,,${fullText}`
+            );
+        });
     });
-    
-    console.log(`Generated ASS subtitles: ${linePairs.length} subtitle blocks (2 lines each)`);
-    return assContent;
+
+    const specialCount = words.filter(w => w.type).length;
+    console.log(`✅ Subtitles: ${blocks.length} blocks, ${words.length} timed words, ${specialCount} special words`);
+
+    return assHeader + '\n' + dialogueLines.join('\n') + '\n';
 }
 
+// ============================================================
+// END SUBTITLE GENERATION — CHANGED SECTION
+// ============================================================
+
 function formatASSTime(seconds) {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    const centisecs = Math.floor((seconds % 1) * 100);
-    
-    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${centisecs.toString().padStart(2, '0')}`;
+    seconds = Math.max(0, seconds);
+    const hrs      = Math.floor(seconds / 3600);
+    const mins     = Math.floor((seconds % 3600) / 60);
+    const secs     = Math.floor(seconds % 60);
+    const centisecs = Math.round((seconds % 1) * 100);
+    return `${hrs}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}.${String(centisecs).padStart(2,'0')}`;
 }
 
 function updateGenerationInfo() {
@@ -557,7 +642,6 @@ function updateGenerationInfo() {
 
 // ============== VIDEO GENERATION ==============
 async function generateVideo() {
-    // Validation
     if (!state.audioBase64 || !state.subtitlesASS || !state.selectedVideo) {
         Toast.show('Please complete all previous steps', 'error');
         return;
@@ -576,7 +660,6 @@ async function generateVideo() {
     const generateBtn = document.getElementById('generateVideoBtn');
     const statusMessage = document.getElementById('statusMessage');
     
-    // Update UI
     generateBtn.disabled = true;
     generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
     state.isProcessing = true;
@@ -587,7 +670,6 @@ async function generateVideo() {
     `;
     statusMessage.className = 'status-message';
     
-    // Reset progress
     document.getElementById('progressFill').style.width = '0%';
     document.getElementById('progressPercent').textContent = '0%';
     document.getElementById('progressText').textContent = 'Starting generation...';
@@ -599,7 +681,6 @@ async function generateVideo() {
         console.log('Audio size:', state.audioBase64.length, 'chars');
         console.log('Subtitles size:', state.subtitlesASS.length, 'chars');
         
-        // Call backend API
         const response = await fetch(`${API_URL}/generate`, {
             method: 'POST',
             headers: {
@@ -626,7 +707,6 @@ async function generateVideo() {
         
         console.log('Job created:', state.currentJobId);
         
-        // Update UI with job info
         statusMessage.innerHTML = `
             <i class="fas fa-check-circle" style="color: var(--success);"></i>
             <strong>Job Started:</strong> ${state.currentJobId.substring(0, 8)}...
@@ -634,7 +714,6 @@ async function generateVideo() {
         `;
         statusMessage.className = 'status-message status-success';
         
-        // Start polling for status
         startJobPolling();
         
         Toast.show('Video generation started', 'success');
@@ -684,7 +763,6 @@ function startJobPolling() {
             if (!response.ok) {
                 console.error('Status check failed:', response.status);
                 
-                // If 404, job might be lost
                 if (response.status === 404) {
                     clearInterval(state.jobPollInterval);
                     updateJobStatus({
@@ -701,21 +779,20 @@ function startJobPolling() {
         } catch (error) {
             console.error('Polling error:', error);
         }
-    }, 3000); // Poll every 3 seconds
+    }, 3000);
 }
 
 function updateJobStatus(data) {
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
+    const progressFill    = document.getElementById('progressFill');
+    const progressText    = document.getElementById('progressText');
     const progressPercent = document.getElementById('progressPercent');
-    const statusMessage = document.getElementById('statusMessage');
-    const resultSection = document.getElementById('resultSection');
-    const generateBtn = document.getElementById('generateVideoBtn');
+    const statusMessage   = document.getElementById('statusMessage');
+    const resultSection   = document.getElementById('resultSection');
+    const generateBtn     = document.getElementById('generateVideoBtn');
     
     console.log('Job status update:', data.status, data.progress + '%', data.message);
     
     if (data.status === 'processing' || data.status === 'pending') {
-        // Update progress
         const progress = data.progress || 0;
         progressFill.style.width = `${progress}%`;
         progressPercent.textContent = `${progress}%`;
@@ -727,7 +804,6 @@ function updateJobStatus(data) {
         `;
         
     } else if (data.status === 'completed') {
-        // Stop polling
         if (state.jobPollInterval) {
             clearInterval(state.jobPollInterval);
             state.jobPollInterval = null;
@@ -735,7 +811,6 @@ function updateJobStatus(data) {
         
         console.log('✅ Video generation completed!');
         
-        // Update UI
         progressFill.style.width = '100%';
         progressPercent.textContent = '100%';
         progressText.textContent = 'Completed!';
@@ -746,7 +821,6 @@ function updateJobStatus(data) {
         `;
         statusMessage.className = 'status-message status-success';
         
-        // Show result section
         const resultVideo = document.getElementById('resultVideo');
         const downloadBtn = document.getElementById('downloadBtn');
         
@@ -758,14 +832,12 @@ function updateJobStatus(data) {
         resultSection.style.display = 'block';
         generateBtn.style.display = 'none';
         
-        // Scroll to result
         resultSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
         state.isProcessing = false;
         Toast.show('Your ArchNemix short is ready!', 'success', 5000);
         
     } else if (data.status === 'failed') {
-        // Stop polling
         if (state.jobPollInterval) {
             clearInterval(state.jobPollInterval);
             state.jobPollInterval = null;
@@ -799,23 +871,20 @@ function updateJobStatus(data) {
 }
 
 function resetApplication() {
-    // Stop any polling
     if (state.jobPollInterval) {
         clearInterval(state.jobPollInterval);
         state.jobPollInterval = null;
     }
     
-    // Reset state
-    state.audioBlob = null;
-    state.audioDuration = 0;
-    state.subtitlesASS = "";
-    state.selectedVideo = "mc1";
-    state.currentJobId = "";
-    state.audioBase64 = "";
-    state.script = "";
-    state.isProcessing = false;
+    state.audioBlob       = null;
+    state.audioDuration   = 0;
+    state.subtitlesASS    = "";
+    state.selectedVideo   = "mc1";
+    state.currentJobId    = "";
+    state.audioBase64     = "";
+    state.script          = "";
+    state.isProcessing    = false;
     
-    // Reset UI
     document.getElementById('scriptInput').value = '';
     document.getElementById('charCount').textContent = '0';
     document.getElementById('charCounter').className = 'char-counter';
@@ -843,10 +912,8 @@ function resetApplication() {
     document.getElementById('statusMessage').innerHTML = '<i class="fas fa-info-circle"></i> Click "Generate Now" to start';
     document.getElementById('statusMessage').className = 'status-message';
     
-    // Go back to step 1
     goToStep(1);
     
-    // Auto-select first video
     const firstVideo = document.querySelector('.video-card');
     if (firstVideo) {
         setTimeout(() => firstVideo.click(), 100);
@@ -873,50 +940,28 @@ window.debugState = () => {
 
 window.testBackend = async () => {
     try {
-        const results = {
-            tts: {},
-            video: {}
-        };
+        const results = { tts: {}, video: {} };
         
-        // Test TTS API
         console.log('Testing TTS API...');
         try {
             const ttsResponse = await fetch(`${TTS_API}/`);
-            results.tts.root = {
-                status: ttsResponse.status,
-                ok: ttsResponse.ok
-            };
-            if (ttsResponse.ok) {
-                results.tts.root.data = await ttsResponse.json();
-            }
+            results.tts.root = { status: ttsResponse.status, ok: ttsResponse.ok };
+            if (ttsResponse.ok) results.tts.root.data = await ttsResponse.json();
             
             const voicesResponse = await fetch(`${TTS_API}/voices`);
-            results.tts.voices = {
-                status: voicesResponse.status,
-                ok: voicesResponse.ok
-            };
-            if (voicesResponse.ok) {
-                results.tts.voices.data = await voicesResponse.json();
-            }
+            results.tts.voices = { status: voicesResponse.status, ok: voicesResponse.ok };
+            if (voicesResponse.ok) results.tts.voices.data = await voicesResponse.json();
         } catch (error) {
             results.tts.error = error.message;
         }
         
-        // Test Video API
         console.log('Testing Video API...');
         const videoEndpoints = ['/', '/health', '/videos/minecraft'];
         for (const endpoint of videoEndpoints) {
             try {
                 const response = await fetch(`${API_URL}${endpoint}`);
-                results.video[endpoint] = {
-                    status: response.status,
-                    ok: response.ok
-                };
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    results.video[endpoint].data = data;
-                }
+                results.video[endpoint] = { status: response.status, ok: response.ok };
+                if (response.ok) results.video[endpoint].data = await response.json();
             } catch (error) {
                 results.video[endpoint] = { error: error.message };
             }
@@ -947,14 +992,11 @@ window.testTTS = async (text = "Hello world, this is a test.") => {
             })
         });
         
-        if (!response.ok) {
-            throw new Error(`TTS failed: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`TTS failed: ${response.status}`);
         
         const data = await response.json();
         console.log('✅ TTS Test Success:', data);
         
-        // Play the audio
         const audio = new Audio('data:audio/wav;base64,' + data.audio_base64);
         audio.play();
         
@@ -968,5 +1010,5 @@ window.testTTS = async (text = "Hello world, this is a test.") => {
     }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v4.1 - 3500 char limit + Middle subtitles');
+console.log('🚀 ArchNemix Shorts Generator v4.2 - Word-sync subtitles + centered');
 console.log('📝 Available commands: debugState(), testBackend(), testTTS()');
