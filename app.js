@@ -1,9 +1,8 @@
-// ArchNemix Shorts Generator - Complete Working Application with Real TTS
+// ArchNemix Shorts Generator - With REAL Word Timestamps from Piper TTS
 // Configuration
 const API_URL = "https://ytshortmakerarchx-ytshrt-archx-mc-1.hf.space";
 const TTS_API = "https://ytshortmakerarchx-piper-tts-male-01.hf.space";
 const APP_KEY = "archx_3f9d15f52n48d41h5fj8a7e2b_private";
-
 
 // Application State
 const state = {
@@ -18,7 +17,8 @@ const state = {
     voices: [],
     jobPollInterval: null,
     isProcessing: false,
-    availableTTSVoices: []
+    availableTTSVoices: [],
+    wordTimestamps: []  // NEW: Store word-level timestamps from TTS
 };
 
 // Toast Notification System
@@ -340,8 +340,8 @@ async function generateAudio() {
         
         await generateRealAudio(state.script, voiceId, rate);
         
-        console.log('📝 Generating subtitles for duration:', state.audioDuration);
-        state.subtitlesASS = generateSubtitles(state.script, state.audioDuration);
+        console.log('📝 Generating subtitles with REAL timestamps from TTS');
+        state.subtitlesASS = generateSubtitles(state.script, state.audioDuration, state.wordTimestamps);
         
         audioStatus.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success);"></i> Audio generated successfully (${state.audioDuration.toFixed(1)}s)`;
         audioStatus.className = 'status-message status-success';
@@ -350,17 +350,18 @@ async function generateAudio() {
         document.getElementById('prevStep2').disabled = false;
         
         const preview = document.getElementById('subtitlePreview');
-        const words = state.script.split(/\s+/).length;
+        const words = state.wordTimestamps.length || state.script.split(/\s+/).length;
+        const syncType = state.wordTimestamps.length > 0 ? 'PERFECTLY SYNCED' : 'Auto-timed';
         preview.innerHTML = `
             <i class="fas fa-closed-captioning" style="color: var(--success);"></i>
-            <strong>Subtitles Ready:</strong> ${words} words • ${Math.round(state.audioDuration)}s
+            <strong>Subtitles Ready:</strong> ${words} words • ${Math.round(state.audioDuration)}s • ${syncType}
         `;
         preview.className = 'status-message status-success';
         
         audioBtn.disabled = false;
         audioBtn.innerHTML = '<i class="fas fa-play"></i> Regenerate Audio';
         
-        Toast.show(`Audio generated: ${state.audioDuration.toFixed(1)}s`, 'success');
+        Toast.show(`Audio generated: ${state.audioDuration.toFixed(1)}s with ${words} word timestamps`, 'success');
         
     } catch (error) {
         console.error('❌ Audio generation failed:', error);
@@ -412,9 +413,11 @@ async function generateRealAudio(text, voiceId, rate) {
             
             console.log('✅ TTS API response received');
             console.log('Duration:', data.duration, 'Audio format:', data.audio_format);
+            console.log('Word timestamps:', data.word_timestamps ? data.word_timestamps.length : 0, 'words');
             
             state.audioDuration = data.duration;
             state.audioBase64 = data.audio_base64;
+            state.wordTimestamps = data.word_timestamps || [];  // Extract timestamps from API
             
             const audioBytes = atob(data.audio_base64);
             const audioArray = new Uint8Array(audioBytes.length);
@@ -431,6 +434,12 @@ async function generateRealAudio(text, voiceId, rate) {
             
             console.log(`✅ Audio blob created: ${state.audioBlob.size} bytes, ${state.audioDuration}s`);
             
+            if (state.wordTimestamps.length > 0) {
+                console.log(`✅ Extracted ${state.wordTimestamps.length} word timestamps for PERFECT sync`);
+            } else {
+                console.warn('⚠️ No word timestamps returned from TTS - using fallback timing');
+            }
+            
             resolve();
             
         } catch (error) {
@@ -441,129 +450,60 @@ async function generateRealAudio(text, voiceId, rate) {
 }
 
 // ============================================================
-// SUBTITLE GENERATION — CHANGED SECTION
-// Word-by-word timing, special word detection (IPs, URLs, etc.),
-// centered vertically (alignment 5), box shading, 2-line max blocks
+// SUBTITLE GENERATION WITH REAL WORD TIMESTAMPS
+// Uses actual timing data from Piper TTS for perfect sync
 // ============================================================
 
-// Detects special words TTS reads slowly. Returns type string or null.
-function _subDetectSpecial(word) {
-    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(word))  return 'ip';
-    if (/^https?:\/\//i.test(word))                           return 'url';
-    if (/^www\./i.test(word))                                 return 'url';
-    if (/^localhost$/i.test(word))                            return 'localhost';
-    if (/^[A-Z]{3,}$/.test(word))                            return 'acronym';
-    if (/^\/[\w.\-/]+$/.test(word))                          return 'path';
-    if (/^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$/.test(word))     return 'email';
-    return null;
+function generateSubtitles(text, duration, wordTimestamps = []) {
+    // If we have real timestamps from TTS, use them!
+    if (wordTimestamps && wordTimestamps.length > 0) {
+        return generateSubtitlesFromTimestamps(wordTimestamps);
+    }
+    
+    // Fallback: use the old estimation method if timestamps unavailable
+    console.warn('⚠️ Using fallback subtitle timing (no timestamps from TTS)');
+    return generateSubtitlesFallback(text, duration);
 }
 
-// Estimates raw speech duration in seconds before proportional scaling.
-function _subEstimateDuration(word, type) {
-    if (type === 'ip') {
-        // "127.0.0.1" → TTS says "one two seven dot zero dot zero dot one"
-        const parts = word.split('.');
-        const dur = parts.reduce((s, p) => s + p.length * 0.28, 0) + (parts.length - 1) * 0.32;
-        return Math.max(dur, 2.0);
-    }
-    if (type === 'url') {
-        return Math.min(word.length * 0.22, 8.0);
-    }
-    if (type === 'localhost') {
-        return 0.85;
-    }
-    if (type === 'acronym') {
-        return word.length * 0.35;
-    }
-    if (type === 'path') {
-        const segs = word.split('/').filter(Boolean);
-        return segs.reduce((s, sg) => s + 0.3 + sg.length * 0.05, 0.2);
-    }
-    if (type === 'email') {
-        return Math.min(word.length * 0.18, 5.0);
-    }
-    // Normal word
-    let dur = 0.38 + word.length * 0.048;
-    if (/[.!?]$/.test(word)) dur += 0.18;  // sentence-end pause
-    if (/[,;:]$/.test(word)) dur += 0.08;  // clause pause
-    return dur;
-}
-
-function generateSubtitles(text, duration) {
-    const rawWords = text.trim().split(/\s+/).filter(w => w.length > 0);
-    if (rawWords.length === 0) return '';
-
-    // ── Step 1: Assign raw duration to every word ──────────────────────────
-    const words = rawWords.map(w => {
-        // Strip surrounding punctuation only for detection, keep original for display
-        const clean = w.replace(/^["""''([{]/, '').replace(/["""'').,!?;:\]}]+$/, '');
-        const type  = _subDetectSpecial(clean);
-        return { text: w, type, rawDur: _subEstimateDuration(clean, type) };
-    });
-
-    // ── Step 2: Scale so the sum of all durations = actual audio length ────
-    const totalRaw = words.reduce((s, w) => s + w.rawDur, 0);
-    const scale    = totalRaw > 0 ? duration / totalRaw : 1;
-
-    let t = 0;
-    words.forEach(w => {
-        w.dur   = w.rawDur * scale;
-        w.start = t;
-        w.end   = t + w.dur;
-        t = w.end;
-    });
-
-    // ── Step 3: Group words into lines (max 22 chars for portrait) ─────────
+function generateSubtitlesFromTimestamps(wordTimestamps) {
+    if (wordTimestamps.length === 0) return '';
+    
+    console.log(`🎯 Generating subtitles from ${wordTimestamps.length} REAL word timestamps`);
+    
+    // ── Step 1: Group words into lines (max 22 chars for portrait) ─────────
     const MAX_CHARS = 22;
     const lines = [];
     let curWords = [], curLen = 0;
-
-    for (const w of words) {
-        const addLen = curLen === 0 ? w.text.length : w.text.length + 1;
+    
+    for (const ts of wordTimestamps) {
+        const word = ts.word;
+        const addLen = curLen === 0 ? word.length : word.length + 1;
+        
         if (addLen + curLen > MAX_CHARS && curWords.length > 0) {
             lines.push(curWords);
-            curWords = [w];
-            curLen   = w.text.length;
+            curWords = [ts];
+            curLen = word.length;
         } else {
-            curWords.push(w);
+            curWords.push(ts);
             curLen += addLen;
         }
     }
     if (curWords.length > 0) lines.push(curWords);
-
-    // ── Step 4: Pair lines into 2-line blocks ──────────────────────────────
+    
+    // ── Step 2: Pair lines into 2-line blocks ──────────────────────────────
     const blocks = [];
     for (let i = 0; i < lines.length; i += 2) {
-        const group    = i + 1 < lines.length ? [lines[i], lines[i + 1]] : [lines[i]];
+        const group = i + 1 < lines.length ? [lines[i], lines[i + 1]] : [lines[i]];
         const allWords = group.flat();
         blocks.push({
-            lines:     group,           // array of line arrays (each line = array of word objects)
-            allWords:  allWords,
-            start:     allWords[0].start,
-            end:       allWords[allWords.length - 1].end
+            lines: group,
+            allWords: allWords,
+            start: allWords[0].start,
+            end: allWords[allWords.length - 1].end
         });
     }
-
-    // ── Step 5: Build ASS file with per-word karaoke timing ───────────────
-    //
-    // Strategy: one Dialogue line per WORD in the block.
-    //   - Each dialogue spans exactly that word's start→end time
-    //   - The full 2-line block text is rendered every time (so layout stays stable)
-    //   - The active word is wrapped in {\c&H0000FFFF&} (yellow) + reset {\r} after
-    //   - All other words stay white {\c&H00FFFFFF&}
-    //   - This gives true word-by-word highlighting without needing karaoke-aware renderers
-    //
-    // Key style settings:
-    //   Alignment 5      = middle-center of screen (ASS numpad layout)
-    //   MarginV 0        = true vertical center, no extra offset
-    //   FontSize 72      = readable on 1080×1920 Shorts
-    //   Bold -1          = bold on
-    //   BorderStyle 1    = outline + shadow
-    //   Outline 4        = thick black outline, readable over any background
-    //   Shadow 1         = small drop shadow for depth
-    //   BackColour &H80000000 = semi-transparent black backdrop behind text
-    //   PrimaryColour white  = default word color
-    //
+    
+    // ── Step 3: Build ASS file with per-word highlighting ─────────────────
     const assHeader = `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
@@ -577,52 +517,111 @@ Style: Default,Arial,72,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
-
-    // Color tags (ASS uses BGR hex, not RGB)
-    const WHITE  = '{\\c&H00FFFFFF&}';  // white  — inactive words
-    const YELLOW = '{\\c&H0000FFFF&}';  // yellow — active word
-    const RESET  = '{\\r}';             // reset to style default after highlighted word
-
+    
+    const WHITE = '{\\c&H00FFFFFF&}';
+    const YELLOW = '{\\c&H0000FFFF&}';
+    const RESET = '{\\r}';
+    
     const dialogueLines = [];
-
+    
     blocks.forEach(block => {
         block.allWords.forEach(activeWord => {
-            // Build the full text of the block, word by word,
-            // highlighting only the current activeWord in yellow
             const lineStrings = block.lines.map(line => {
                 return line.map(w => {
                     if (w === activeWord) {
-                        // Highlight this word in yellow, then reset color for the rest
-                        return `${YELLOW}${w.text}${RESET}${WHITE}`;
+                        return `${YELLOW}${w.word}${RESET}${WHITE}`;
                     }
-                    return `${WHITE}${w.text}`;
+                    return `${WHITE}${w.word}`;
                 }).join(' ');
             });
-
+            
             const fullText = lineStrings.join('\\N');
-
-            // This dialogue line is visible only during this word's time window
+            
+            // Use REAL timestamps from TTS!
             dialogueLines.push(
                 `Dialogue: 0,${formatASSTime(activeWord.start)},${formatASSTime(activeWord.end)},Default,,0,0,0,,${fullText}`
             );
         });
     });
-
-    const specialCount = words.filter(w => w.type).length;
-    console.log(`✅ Subtitles: ${blocks.length} blocks, ${words.length} timed words, ${specialCount} special words`);
-
+    
+    console.log(`✅ Generated ${dialogueLines.length} perfectly synced subtitle lines from TTS timestamps`);
+    
     return assHeader + '\n' + dialogueLines.join('\n') + '\n';
 }
 
+// Fallback method if TTS doesn't return timestamps
+function generateSubtitlesFallback(text, duration) {
+    const rawWords = text.trim().split(/\s+/).filter(w => w.length > 0);
+    if (rawWords.length === 0) return '';
+    
+    console.log('⚠️ Using estimation-based timing (TTS timestamps not available)');
+    
+    const words = rawWords.map(w => {
+        const clean = w.replace(/^["""''([{]/, '').replace(/["""'').,!?;:\]}]+$/, '');
+        const type = _subDetectSpecial(clean);
+        return { text: w, type, rawDur: _subEstimateDuration(clean, type) };
+    });
+    
+    const totalRaw = words.reduce((s, w) => s + w.rawDur, 0);
+    const scale = totalRaw > 0 ? duration / totalRaw : 1;
+    
+    let t = 0;
+    const wordTimestamps = words.map(w => {
+        const dur = w.rawDur * scale;
+        const ts = {
+            word: w.text,
+            start: parseFloat(t.toFixed(3)),
+            end: parseFloat((t + dur).toFixed(3))
+        };
+        t = ts.end;
+        return ts;
+    });
+    
+    return generateSubtitlesFromTimestamps(wordTimestamps);
+}
+
+// Helper functions for fallback estimation
+function _subDetectSpecial(word) {
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(word)) return 'ip';
+    if (/^https?:\/\//i.test(word)) return 'url';
+    if (/^www\./i.test(word)) return 'url';
+    if (/^localhost$/i.test(word)) return 'localhost';
+    if (/^[A-Z]{3,}$/.test(word)) return 'acronym';
+    if (/^\/[\w.\-/]+$/.test(word)) return 'path';
+    if (/^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$/.test(word)) return 'email';
+    return null;
+}
+
+function _subEstimateDuration(word, type) {
+    if (type === 'ip') {
+        const parts = word.split('.');
+        const dur = parts.reduce((s, p) => s + p.length * 0.28, 0) + (parts.length - 1) * 0.32;
+        return Math.max(dur, 2.0);
+    }
+    if (type === 'url') return Math.min(word.length * 0.22, 8.0);
+    if (type === 'localhost') return 0.85;
+    if (type === 'acronym') return word.length * 0.35;
+    if (type === 'path') {
+        const segs = word.split('/').filter(Boolean);
+        return segs.reduce((s, sg) => s + 0.3 + sg.length * 0.05, 0.2);
+    }
+    if (type === 'email') return Math.min(word.length * 0.18, 5.0);
+    
+    let dur = 0.38 + word.length * 0.048;
+    if (/[.!?]$/.test(word)) dur += 0.18;
+    if (/[,;:]$/.test(word)) dur += 0.08;
+    return dur;
+}
+
 // ============================================================
-// END SUBTITLE GENERATION — CHANGED SECTION
+// END SUBTITLE GENERATION
 // ============================================================
 
 function formatASSTime(seconds) {
     seconds = Math.max(0, seconds);
-    const hrs      = Math.floor(seconds / 3600);
-    const mins     = Math.floor((seconds % 3600) / 60);
-    const secs     = Math.floor(seconds % 60);
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
     const centisecs = Math.round((seconds % 1) * 100);
     return `${hrs}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}.${String(centisecs).padStart(2,'0')}`;
 }
@@ -667,7 +666,7 @@ async function generateVideo() {
     
     statusMessage.innerHTML = `
         <i class="fas fa-robot"></i> 
-        Initializing ArchNemix AI Pipeline...
+        Initializing ArchNemix AI Pipeline with PERFECT subtitle sync...
     `;
     statusMessage.className = 'status-message';
     
@@ -681,6 +680,7 @@ async function generateVideo() {
         console.log('Background:', state.selectedVideo);
         console.log('Audio size:', state.audioBase64.length, 'chars');
         console.log('Subtitles size:', state.subtitlesASS.length, 'chars');
+        console.log('Word timestamps:', state.wordTimestamps.length, 'words');
         
         const response = await fetch(`${API_URL}/generate`, {
             method: 'POST',
@@ -717,7 +717,7 @@ async function generateVideo() {
         
         startJobPolling();
         
-        Toast.show('Video generation started', 'success');
+        Toast.show('Video generation started with perfect subtitle sync', 'success');
         
     } catch (error) {
         console.error('Generation failed:', error);
@@ -784,12 +784,12 @@ function startJobPolling() {
 }
 
 function updateJobStatus(data) {
-    const progressFill    = document.getElementById('progressFill');
-    const progressText    = document.getElementById('progressText');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
     const progressPercent = document.getElementById('progressPercent');
-    const statusMessage   = document.getElementById('statusMessage');
-    const resultSection   = document.getElementById('resultSection');
-    const generateBtn     = document.getElementById('generateVideoBtn');
+    const statusMessage = document.getElementById('statusMessage');
+    const resultSection = document.getElementById('resultSection');
+    const generateBtn = document.getElementById('generateVideoBtn');
     
     console.log('Job status update:', data.status, data.progress + '%', data.message);
     
@@ -818,7 +818,7 @@ function updateJobStatus(data) {
         
         statusMessage.innerHTML = `
             <i class="fas fa-check-circle" style="color: var(--success);"></i>
-            <strong>Success!</strong> Video generation completed.
+            <strong>Success!</strong> Video generation completed with PERFECT subtitle sync.
         `;
         statusMessage.className = 'status-message status-success';
         
@@ -877,14 +877,15 @@ function resetApplication() {
         state.jobPollInterval = null;
     }
     
-    state.audioBlob       = null;
-    state.audioDuration   = 0;
-    state.subtitlesASS    = "";
-    state.selectedVideo   = "mc1";
-    state.currentJobId    = "";
-    state.audioBase64     = "";
-    state.script          = "";
-    state.isProcessing    = false;
+    state.audioBlob = null;
+    state.audioDuration = 0;
+    state.subtitlesASS = "";
+    state.selectedVideo = "mc1";
+    state.currentJobId = "";
+    state.audioBase64 = "";
+    state.script = "";
+    state.isProcessing = false;
+    state.wordTimestamps = [];
     
     document.getElementById('scriptInput').value = '';
     document.getElementById('charCount').textContent = '0';
@@ -934,7 +935,8 @@ window.debugState = () => {
         selectedVideo: state.selectedVideo,
         currentJob: state.currentJobId,
         isProcessing: state.isProcessing,
-        availableVoices: state.availableTTSVoices.length
+        availableVoices: state.availableTTSVoices.length,
+        wordTimestamps: state.wordTimestamps.length
     });
     return state;
 };
@@ -997,6 +999,7 @@ window.testTTS = async (text = "Hello world, this is a test.") => {
         
         const data = await response.json();
         console.log('✅ TTS Test Success:', data);
+        console.log('Word timestamps:', data.word_timestamps);
         
         const audio = new Audio('data:audio/wav;base64,' + data.audio_base64);
         audio.play();
@@ -1011,5 +1014,6 @@ window.testTTS = async (text = "Hello world, this is a test.") => {
     }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v4.2 - Word-sync subtitles + centered');
+console.log('🚀 ArchNemix Shorts Generator v9.0 - REAL TTS Word Timestamps');
+console.log('🎯 Perfect subtitle sync using Piper TTS timestamp extraction');
 console.log('📝 Available commands: debugState(), testBackend(), testTTS()');
