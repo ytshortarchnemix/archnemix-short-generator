@@ -1,7 +1,8 @@
-// ArchNemix Shorts Generator - With REAL Word Timestamps from Piper TTS
+// ArchNemix Shorts Generator - With REAL Word Timestamps from Piper TTS + Forced Alignment
 // Configuration
 const API_URL = "https://ytshortmakerarchx-ytshrt-archx-mc-1.hf.space";
 const TTS_API = "https://ytshortmakerarchx-piper-tts-male-01.hf.space";
+const ALIGN_API = "https://ytshortmakerarchx-archxaudsbt.hf.space"; // 🔥 NEW: Forced alignment service
 const APP_KEY = "archx_3f9d15f52n48d41h5fj8a7e2b_private";
 
 // Application State
@@ -18,7 +19,7 @@ const state = {
     jobPollInterval: null,
     isProcessing: false,
     availableTTSVoices: [],
-    wordTimestamps: []  // NEW: Store word-level timestamps from TTS
+    wordTimestamps: []  // Store word-level timestamps (upgraded by aligner)
 };
 
 // Toast Notification System
@@ -377,6 +378,33 @@ async function generateAudio() {
     }
 }
 
+// ============== FORCED ALIGNMENT SERVICE (PERFECT TIMESTAMPS) ==============
+async function getWordTimestampsFromAligner(audioBase64, script) {
+    try {
+        console.log('🎯 Calling forced alignment service...');
+        const response = await fetch(`${ALIGN_API}/align`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                audio_base64: audioBase64,
+                text: script
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(`Aligner error (${response.status}): ${error}`);
+        }
+
+        const data = await response.json();
+        console.log(`✅ Alignment success: ${data.word_timestamps.length} word timestamps`);
+        return data.word_timestamps;
+    } catch (error) {
+        console.error('❌ Forced alignment failed:', error);
+        return null; // Signals fallback to Piper/estimator
+    }
+}
+
 async function generateRealAudio(text, voiceId, rate) {
     return new Promise(async (resolve, reject) => {
         try {
@@ -417,7 +445,20 @@ async function generateRealAudio(text, voiceId, rate) {
             
             state.audioDuration = data.duration;
             state.audioBase64 = data.audio_base64;
-            state.wordTimestamps = data.word_timestamps || [];  // Extract timestamps from API
+            
+            // 1. Store Piper timestamps (if any)
+            state.wordTimestamps = data.word_timestamps || [];
+            
+            // 2. 🔥 UPGRADE: Override with forced alignment timestamps (perfect sync)
+            try {
+                const alignerTimestamps = await getWordTimestampsFromAligner(state.audioBase64, text);
+                if (alignerTimestamps && alignerTimestamps.length > 0) {
+                    state.wordTimestamps = alignerTimestamps;
+                    console.log(`✨ Using ${alignerTimestamps.length} FORCED ALIGNMENT timestamps – PERFECT SYNC!`);
+                }
+            } catch (e) {
+                console.warn('⚠️ Aligner failed, keeping Piper/fallback timestamps');
+            }
             
             const audioBytes = atob(data.audio_base64);
             const audioArray = new Uint8Array(audioBytes.length);
@@ -1014,6 +1055,6 @@ window.testTTS = async (text = "Hello world, this is a test.") => {
     }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v9.0 - REAL TTS Word Timestamps');
-console.log('🎯 Perfect subtitle sync using Piper TTS timestamp extraction');
+console.log('🚀 ArchNemix Shorts Generator v10.0 - FORCED ALIGNMENT UPGRADE');
+console.log('🎯 Perfect subtitle sync using Wav2Vec2 forced alignment');
 console.log('📝 Available commands: debugState(), testBackend(), testTTS()');
