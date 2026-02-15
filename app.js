@@ -448,26 +448,40 @@ async function generateRealAudio(text, voiceId, rate) {
             // 1. Clear any old timestamps
             state.wordTimestamps = [];
             
-            // 2. 🔥 ALWAYS use forced alignment with user's EXACT script for perfect sync
+            // 2. Try forced alignment (BEST quality if it works)
+            let alignmentWorked = false;
             try {
-                console.log('🎯 Starting forced alignment with user script...');
+                console.log('🎯 Attempting forced alignment with user script...');
                 const alignerTimestamps = await getWordTimestampsFromAligner(state.audioBase64, text);
                 
                 if (alignerTimestamps && alignerTimestamps.length > 0) {
-                    state.wordTimestamps = alignerTimestamps;
-                    console.log(`✨ SUCCESS: ${alignerTimestamps.length} FORCED ALIGNMENT timestamps – PERFECT SYNC!`);
+                    // Validate timestamps make sense
+                    const lastTimestamp = alignerTimestamps[alignerTimestamps.length - 1];
+                    const timestampsValid = lastTimestamp.end <= state.audioDuration + 0.5;
+                    
+                    if (timestampsValid) {
+                        state.wordTimestamps = alignerTimestamps;
+                        alignmentWorked = true;
+                        console.log(`✨ SUCCESS: ${alignerTimestamps.length} forced alignment timestamps`);
+                    } else {
+                        console.warn(`⚠️ Alignment timestamps invalid (end: ${lastTimestamp.end}s, audio: ${state.audioDuration}s)`);
+                    }
                 } else {
-                    throw new Error('No timestamps returned from aligner');
+                    console.warn('⚠️ Aligner returned no timestamps');
                 }
             } catch (alignError) {
-                console.error('⚠️ Forced alignment failed:', alignError);
-                // Use Piper timestamps as fallback if available
-                if (data.word_timestamps && data.word_timestamps.length > 0) {
-                    state.wordTimestamps = data.word_timestamps;
-                    console.log(`⚠️ Using ${data.word_timestamps.length} Piper TTS timestamps as fallback`);
-                } else {
-                    console.warn('⚠️ No timestamps available - will use estimation fallback');
-                }
+                console.warn('⚠️ Forced alignment failed:', alignError.message);
+            }
+            
+            // 3. Fallback to Piper timestamps if available
+            if (!alignmentWorked && data.word_timestamps && data.word_timestamps.length > 0) {
+                state.wordTimestamps = data.word_timestamps;
+                console.log(`📌 Using ${data.word_timestamps.length} Piper TTS timestamps as fallback`);
+            }
+            
+            // 4. If still no timestamps, estimation will be used in subtitle generation
+            if (state.wordTimestamps.length === 0) {
+                console.log('📝 No timestamps available - will use estimation in subtitle generation');
             }
             
             const audioBytes = atob(data.audio_base64);
@@ -600,38 +614,129 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
     return assHeader + '\n' + dialogueLines.join('\n') + '\n';
 }
 
-// Fallback method if forced alignment doesn't work
+// Fallback method - improved estimation
 function generateSubtitlesFallback(text, duration) {
     const rawWords = text.trim().split(/\s+/).filter(w => w.length > 0);
     if (rawWords.length === 0) return '';
     
-    console.log('⚠️ Using estimation-based timing (forced alignment not available)');
+    console.log(`⚠️ Using improved estimation-based timing for ${rawWords.length} words over ${duration}s`);
     
+    // More sophisticated word duration estimation
     const words = rawWords.map(w => {
         const clean = w.replace(/^["""''([{]/, '').replace(/["""'').,!?;:\]}]+$/, '');
         const type = _subDetectSpecial(clean);
-        return { text: w, type, rawDur: _subEstimateDuration(clean, type) };
+        
+        // Base duration on syllable count (more accurate than character count)
+        const syllables = _estimateSyllables(clean);
+        let baseDur = 0;
+        
+        if (type === 'ip') {
+            const parts = clean.split('.');
+            baseDur = parts.reduce((s, p) => s + p.length * 0.28, 0) + (parts.length - 1) * 0.32;
+            baseDur = Math.max(baseDur, 2.0);
+        } else if (type === 'url') {
+            baseDur = Math.min(clean.length * 0.22, 8.0);
+        } else if (type === 'localhost') {
+            baseDur = 0.85;
+        } else if (type === 'acronym') {
+            baseDur = clean.length * 0.35;
+        } else if (type === 'path') {
+            const segs = clean.split('/').filter(Boolean);
+            baseDur = segs.reduce((s, sg) => s + 0.3 + sg.length * 0.05, 0.2);
+        } else if (type === 'email') {
+            baseDur = Math.min(clean.length * 0.18, 5.0);
+        } else {
+            // Normal words: ~0.15-0.25s per syllable for natural speech
+            baseDur = 0.2 + (syllables * 0.18);
+            
+            // Adjust for word complexity
+            if (clean.length > 10) baseDur += 0.1; // Long words take longer
+            if (/[.!?]$/.test(w)) baseDur += 0.25; // Sentence end pause
+            else if (/[,;:]$/.test(w)) baseDur += 0.15; // Clause pause
+        }
+        
+        return { text: w, clean: clean, type, baseDur };
     });
     
-    const totalRaw = words.reduce((s, w) => s + w.rawDur, 0);
-    const scale = totalRaw > 0 ? duration / totalRaw : 1;
+    // Calculate total estimated time and scale factor
+    const totalEstimated = words.reduce((s, w) => s + w.baseDur, 0);
+    const scaleFactor = totalEstimated > 0 ? (duration * 0.95) / totalEstimated : 1;
     
-    let t = 0;
-    const wordTimestamps = words.map(w => {
-        const dur = w.rawDur * scale;
-        const ts = {
-            word: w.text,
-            start: parseFloat(t.toFixed(3)),
-            end: parseFloat((t + dur).toFixed(3))
-        };
-        t = ts.end;
-        return ts;
+    // Apply scaling and add natural gaps
+    const wordTimestamps = [];
+    let currentTime = 0.1; // Small initial delay
+    
+    words.forEach((w, idx) => {
+        const wordDur = w.baseDur * scaleFactor;
+        
+        // Inter-word gap (natural speech pauses)
+        let gap = 0;
+        if (idx > 0) {
+            if (/[.!?]$/.test(words[idx - 1].text)) {
+                gap = 0.3; // Longer pause after sentence
+            } else if (/[,;:]$/.test(words[idx - 1].text)) {
+                gap = 0.15; // Medium pause after clause
+            } else {
+                gap = 0.08; // Normal word gap
+            }
+        }
+        
+        const start = currentTime + gap;
+        const end = start + wordDur;
+        
+        wordTimestamps.push({
+            word: w.clean,
+            start: parseFloat(start.toFixed(3)),
+            end: parseFloat(Math.min(end, duration).toFixed(3))
+        });
+        
+        currentTime = end;
     });
     
+    // Final adjustment: ensure we use most of the audio duration
+    if (wordTimestamps.length > 0) {
+        const lastWord = wordTimestamps[wordTimestamps.length - 1];
+        if (lastWord.end < duration * 0.9) {
+            // Stretch all timestamps proportionally
+            const stretchFactor = (duration * 0.95) / lastWord.end;
+            wordTimestamps.forEach(ts => {
+                ts.start = parseFloat((ts.start * stretchFactor).toFixed(3));
+                ts.end = parseFloat((ts.end * stretchFactor).toFixed(3));
+            });
+        }
+    }
+    
+    console.log(`✅ Generated ${wordTimestamps.length} estimated timestamps`);
     return generateSubtitlesFromTimestamps(wordTimestamps);
 }
 
-// Helper functions for fallback estimation
+// Helper: Estimate syllable count (more accurate for speech timing)
+function _estimateSyllables(word) {
+    word = word.toLowerCase();
+    if (word.length <= 3) return 1;
+    
+    // Count vowel groups
+    let syllables = 0;
+    let prevWasVowel = false;
+    
+    for (let i = 0; i < word.length; i++) {
+        const isVowel = /[aeiouy]/.test(word[i]);
+        if (isVowel && !prevWasVowel) {
+            syllables++;
+        }
+        prevWasVowel = isVowel;
+    }
+    
+    // Adjust for silent 'e'
+    if (word.endsWith('e') && syllables > 1) {
+        syllables--;
+    }
+    
+    // Minimum 1 syllable
+    return Math.max(1, syllables);
+}
+
+// Helper functions for word type detection
 function _subDetectSpecial(word) {
     if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(word)) return 'ip';
     if (/^https?:\/\//i.test(word)) return 'url';
@@ -641,27 +746,6 @@ function _subDetectSpecial(word) {
     if (/^\/[\w.\-/]+$/.test(word)) return 'path';
     if (/^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$/.test(word)) return 'email';
     return null;
-}
-
-function _subEstimateDuration(word, type) {
-    if (type === 'ip') {
-        const parts = word.split('.');
-        const dur = parts.reduce((s, p) => s + p.length * 0.28, 0) + (parts.length - 1) * 0.32;
-        return Math.max(dur, 2.0);
-    }
-    if (type === 'url') return Math.min(word.length * 0.22, 8.0);
-    if (type === 'localhost') return 0.85;
-    if (type === 'acronym') return word.length * 0.35;
-    if (type === 'path') {
-        const segs = word.split('/').filter(Boolean);
-        return segs.reduce((s, sg) => s + 0.3 + sg.length * 0.05, 0.2);
-    }
-    if (type === 'email') return Math.min(word.length * 0.18, 5.0);
-    
-    let dur = 0.38 + word.length * 0.048;
-    if (/[.!?]$/.test(word)) dur += 0.18;
-    if (/[,;:]$/.test(word)) dur += 0.08;
-    return dur;
 }
 
 // ============================================================
@@ -1065,6 +1149,6 @@ window.testTTS = async (text = "Hello world, this is a test.") => {
     }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v10.1 - FORCED ALIGNMENT WITH USER SCRIPT');
-console.log('🎯 Perfect subtitle sync using user script + Wav2Vec2 forced alignment');
+console.log('🚀 ArchNemix Shorts Generator v11.0 - HYBRID ALIGNMENT SYSTEM');
+console.log('🎯 Improved subtitle sync: Energy-based alignment + smart estimation fallback');
 console.log('📝 Available commands: debugState(), testBackend(), testTTS()');
