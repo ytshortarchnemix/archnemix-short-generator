@@ -341,7 +341,7 @@ async function generateAudio() {
         
         await generateRealAudio(state.script, voiceId, rate);
         
-        console.log('📝 Generating subtitles with REAL timestamps from TTS');
+        console.log('📝 Generating subtitles with REAL timestamps from forced alignment');
         state.subtitlesASS = generateSubtitles(state.script, state.audioDuration, state.wordTimestamps);
         
         audioStatus.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success);"></i> Audio generated successfully (${state.audioDuration.toFixed(1)}s)`;
@@ -381,7 +381,7 @@ async function generateAudio() {
 // ============== FORCED ALIGNMENT SERVICE (PERFECT TIMESTAMPS) ==============
 async function getWordTimestampsFromAligner(audioBase64, script) {
     try {
-        console.log('🎯 Calling forced alignment service...');
+        console.log('🎯 Calling forced alignment service with user script...');
         const response = await fetch(`${ALIGN_API}/align`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -401,7 +401,7 @@ async function getWordTimestampsFromAligner(audioBase64, script) {
         return data.word_timestamps;
     } catch (error) {
         console.error('❌ Forced alignment failed:', error);
-        return null; // Signals fallback to Piper/estimator
+        throw error; // Re-throw to signal failure
     }
 }
 
@@ -441,23 +441,33 @@ async function generateRealAudio(text, voiceId, rate) {
             
             console.log('✅ TTS API response received');
             console.log('Duration:', data.duration, 'Audio format:', data.audio_format);
-            console.log('Word timestamps:', data.word_timestamps ? data.word_timestamps.length : 0, 'words');
             
             state.audioDuration = data.duration;
             state.audioBase64 = data.audio_base64;
             
-            // 1. Store Piper timestamps (if any)
-            state.wordTimestamps = data.word_timestamps || [];
+            // 1. Clear any old timestamps
+            state.wordTimestamps = [];
             
-            // 2. 🔥 UPGRADE: Override with forced alignment timestamps (perfect sync)
+            // 2. 🔥 ALWAYS use forced alignment with user's EXACT script for perfect sync
             try {
+                console.log('🎯 Starting forced alignment with user script...');
                 const alignerTimestamps = await getWordTimestampsFromAligner(state.audioBase64, text);
+                
                 if (alignerTimestamps && alignerTimestamps.length > 0) {
                     state.wordTimestamps = alignerTimestamps;
-                    console.log(`✨ Using ${alignerTimestamps.length} FORCED ALIGNMENT timestamps – PERFECT SYNC!`);
+                    console.log(`✨ SUCCESS: ${alignerTimestamps.length} FORCED ALIGNMENT timestamps – PERFECT SYNC!`);
+                } else {
+                    throw new Error('No timestamps returned from aligner');
                 }
-            } catch (e) {
-                console.warn('⚠️ Aligner failed, keeping Piper/fallback timestamps');
+            } catch (alignError) {
+                console.error('⚠️ Forced alignment failed:', alignError);
+                // Use Piper timestamps as fallback if available
+                if (data.word_timestamps && data.word_timestamps.length > 0) {
+                    state.wordTimestamps = data.word_timestamps;
+                    console.log(`⚠️ Using ${data.word_timestamps.length} Piper TTS timestamps as fallback`);
+                } else {
+                    console.warn('⚠️ No timestamps available - will use estimation fallback');
+                }
             }
             
             const audioBytes = atob(data.audio_base64);
@@ -476,9 +486,9 @@ async function generateRealAudio(text, voiceId, rate) {
             console.log(`✅ Audio blob created: ${state.audioBlob.size} bytes, ${state.audioDuration}s`);
             
             if (state.wordTimestamps.length > 0) {
-                console.log(`✅ Extracted ${state.wordTimestamps.length} word timestamps for PERFECT sync`);
+                console.log(`✅ Final: ${state.wordTimestamps.length} word timestamps ready for subtitle sync`);
             } else {
-                console.warn('⚠️ No word timestamps returned from TTS - using fallback timing');
+                console.warn('⚠️ No word timestamps - will use fallback timing');
             }
             
             resolve();
@@ -492,17 +502,17 @@ async function generateRealAudio(text, voiceId, rate) {
 
 // ============================================================
 // SUBTITLE GENERATION WITH REAL WORD TIMESTAMPS
-// Uses actual timing data from Piper TTS for perfect sync
+// Uses actual timing data from forced alignment for perfect sync
 // ============================================================
 
 function generateSubtitles(text, duration, wordTimestamps = []) {
-    // If we have real timestamps from TTS, use them!
+    // If we have real timestamps from forced alignment, use them!
     if (wordTimestamps && wordTimestamps.length > 0) {
         return generateSubtitlesFromTimestamps(wordTimestamps);
     }
     
     // Fallback: use the old estimation method if timestamps unavailable
-    console.warn('⚠️ Using fallback subtitle timing (no timestamps from TTS)');
+    console.warn('⚠️ Using fallback subtitle timing (no timestamps from forced alignment)');
     return generateSubtitlesFallback(text, duration);
 }
 
@@ -578,24 +588,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
             
             const fullText = lineStrings.join('\\N');
             
-            // Use REAL timestamps from TTS!
+            // Use REAL timestamps from forced alignment!
             dialogueLines.push(
                 `Dialogue: 0,${formatASSTime(activeWord.start)},${formatASSTime(activeWord.end)},Default,,0,0,0,,${fullText}`
             );
         });
     });
     
-    console.log(`✅ Generated ${dialogueLines.length} perfectly synced subtitle lines from TTS timestamps`);
+    console.log(`✅ Generated ${dialogueLines.length} perfectly synced subtitle lines from forced alignment`);
     
     return assHeader + '\n' + dialogueLines.join('\n') + '\n';
 }
 
-// Fallback method if TTS doesn't return timestamps
+// Fallback method if forced alignment doesn't work
 function generateSubtitlesFallback(text, duration) {
     const rawWords = text.trim().split(/\s+/).filter(w => w.length > 0);
     if (rawWords.length === 0) return '';
     
-    console.log('⚠️ Using estimation-based timing (TTS timestamps not available)');
+    console.log('⚠️ Using estimation-based timing (forced alignment not available)');
     
     const words = rawWords.map(w => {
         const clean = w.replace(/^["""''([{]/, '').replace(/["""'').,!?;:\]}]+$/, '');
@@ -1055,6 +1065,6 @@ window.testTTS = async (text = "Hello world, this is a test.") => {
     }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v10.0 - FORCED ALIGNMENT UPGRADE');
-console.log('🎯 Perfect subtitle sync using Wav2Vec2 forced alignment');
+console.log('🚀 ArchNemix Shorts Generator v10.1 - FORCED ALIGNMENT WITH USER SCRIPT');
+console.log('🎯 Perfect subtitle sync using user script + Wav2Vec2 forced alignment');
 console.log('📝 Available commands: debugState(), testBackend(), testTTS()');
