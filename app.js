@@ -1,8 +1,8 @@
-// ArchNemix Shorts Generator - With REAL Word Timestamps from Piper TTS + Forced Alignment
+// ArchNemix Shorts Generator - Using Piper's Built-in Word Timestamps
 // Configuration
 const API_URL = "https://ytshortmakerarchx-ytshrt-archx-mc-1.hf.space";
 const TTS_API = "https://ytshortmakerarchx-piper-tts-male-01.hf.space";
-const ALIGN_API = "https://ytshortmakerarchx-archxaudsbt.hf.space"; // 🔥 NEW: Forced alignment service
+// NO ALIGNMENT API NEEDED - Piper gives us perfect timestamps!
 const APP_KEY = "archx_3f9d15f52n48d41h5fj8a7e2b_private";
 
 // Application State
@@ -378,32 +378,8 @@ async function generateAudio() {
     }
 }
 
-// ============== FORCED ALIGNMENT SERVICE (PERFECT TIMESTAMPS) ==============
-async function getWordTimestampsFromAligner(audioBase64, script) {
-    try {
-        console.log('🎯 Calling forced alignment service with user script...');
-        const response = await fetch(`${ALIGN_API}/align`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                audio_base64: audioBase64,
-                text: script
-            })
-        });
-
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`Aligner error (${response.status}): ${error}`);
-        }
-
-        const data = await response.json();
-        console.log(`✅ Alignment success: ${data.word_timestamps.length} word timestamps`);
-        return data.word_timestamps;
-    } catch (error) {
-        console.error('❌ Forced alignment failed:', error);
-        throw error; // Re-throw to signal failure
-    }
-}
+// Piper TTS now gives us perfect word timestamps directly!
+// No alignment service needed - timestamps come from the TTS generation itself
 
 async function generateRealAudio(text, voiceId, rate) {
     return new Promise(async (resolve, reject) => {
@@ -441,47 +417,18 @@ async function generateRealAudio(text, voiceId, rate) {
             
             console.log('✅ TTS API response received');
             console.log('Duration:', data.duration, 'Audio format:', data.audio_format);
+            console.log('Word timestamps from Piper:', data.word_timestamps ? data.word_timestamps.length : 0, 'words');
             
             state.audioDuration = data.duration;
             state.audioBase64 = data.audio_base64;
             
-            // 1. Clear any old timestamps
-            state.wordTimestamps = [];
-            
-            // 2. Try forced alignment (BEST quality if it works)
-            let alignmentWorked = false;
-            try {
-                console.log('🎯 Attempting forced alignment with user script...');
-                const alignerTimestamps = await getWordTimestampsFromAligner(state.audioBase64, text);
-                
-                if (alignerTimestamps && alignerTimestamps.length > 0) {
-                    // Validate timestamps make sense
-                    const lastTimestamp = alignerTimestamps[alignerTimestamps.length - 1];
-                    const timestampsValid = lastTimestamp.end <= state.audioDuration + 0.5;
-                    
-                    if (timestampsValid) {
-                        state.wordTimestamps = alignerTimestamps;
-                        alignmentWorked = true;
-                        console.log(`✨ SUCCESS: ${alignerTimestamps.length} forced alignment timestamps`);
-                    } else {
-                        console.warn(`⚠️ Alignment timestamps invalid (end: ${lastTimestamp.end}s, audio: ${state.audioDuration}s)`);
-                    }
-                } else {
-                    console.warn('⚠️ Aligner returned no timestamps');
-                }
-            } catch (alignError) {
-                console.warn('⚠️ Forced alignment failed:', alignError.message);
-            }
-            
-            // 3. Fallback to Piper timestamps if available
-            if (!alignmentWorked && data.word_timestamps && data.word_timestamps.length > 0) {
+            // 🔥 USE PIPER'S WORD TIMESTAMPS DIRECTLY - NO ALIGNMENT NEEDED!
+            if (data.word_timestamps && data.word_timestamps.length > 0) {
                 state.wordTimestamps = data.word_timestamps;
-                console.log(`📌 Using ${data.word_timestamps.length} Piper TTS timestamps as fallback`);
-            }
-            
-            // 4. If still no timestamps, estimation will be used in subtitle generation
-            if (state.wordTimestamps.length === 0) {
-                console.log('📝 No timestamps available - will use estimation in subtitle generation');
+                console.log(`✨ Using ${data.word_timestamps.length} REAL timestamps from Piper TTS - PERFECT SYNC!`);
+            } else {
+                console.warn('⚠️ No timestamps from Piper - using fallback estimation');
+                state.wordTimestamps = [];
             }
             
             const audioBytes = atob(data.audio_base64);
@@ -500,7 +447,7 @@ async function generateRealAudio(text, voiceId, rate) {
             console.log(`✅ Audio blob created: ${state.audioBlob.size} bytes, ${state.audioDuration}s`);
             
             if (state.wordTimestamps.length > 0) {
-                console.log(`✅ Final: ${state.wordTimestamps.length} word timestamps ready for subtitle sync`);
+                console.log(`✅ Using ${state.wordTimestamps.length} word timestamps from Piper TTS`);
             } else {
                 console.warn('⚠️ No word timestamps - will use fallback timing');
             }
@@ -1149,6 +1096,6 @@ window.testTTS = async (text = "Hello world, this is a test.") => {
     }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v11.0 - HYBRID ALIGNMENT SYSTEM');
-console.log('🎯 Improved subtitle sync: Energy-based alignment + smart estimation fallback');
+console.log('🚀 ArchNemix Shorts Generator v12.0 - NATIVE PIPER TIMESTAMPS');
+console.log('🎯 Perfect subtitle sync using Piper TTS built-in word timestamps');
 console.log('📝 Available commands: debugState(), testBackend(), testTTS()');
