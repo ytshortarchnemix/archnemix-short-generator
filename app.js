@@ -1,8 +1,8 @@
-// ArchNemix Shorts Generator - Using Piper's Built-in Word Timestamps
+// ArchNemix Shorts Generator - Using HeadTTS Perfect Word Timestamps
 // Configuration
 const API_URL = "https://ytshortmakerarchx-ytshrt-archx-mc-1.hf.space";
-const TTS_API = "https://ytshortmakerarchx-piper-tts-male-01.hf.space";
-// NO ALIGNMENT API NEEDED - Piper gives us perfect timestamps!
+const TTS_API = "https://ytshortmakerarchx-headtts-service.hf.space";
+// HeadTTS provides phoneme-aligned word timestamps - PERFECT sync!
 const APP_KEY = "archx_3f9d15f52n48d41h5fj8a7e2b_private";
 
 // Application State
@@ -19,7 +19,7 @@ const state = {
     jobPollInterval: null,
     isProcessing: false,
     availableTTSVoices: [],
-    wordTimestamps: []  // Store word-level timestamps (upgraded by aligner)
+    wordTimestamps: []  // Perfect timestamps from HeadTTS
 };
 
 // Toast Notification System
@@ -89,7 +89,7 @@ document.head.appendChild(toastStyles);
 
 // Main Initialization
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('✨ ArchNemix Shorts Generator Initializing...');
+    console.log('✨ ArchNemix Shorts Generator Initializing with HeadTTS...');
     initializeApplication();
 });
 
@@ -99,7 +99,7 @@ async function initializeApplication() {
         await initializeVoices();
         await loadVideos();
         updateStepIndicators();
-        Toast.show('ArchNemix AI Ready', 'success');
+        Toast.show('ArchNemix AI Ready with HeadTTS', 'success');
     } catch (error) {
         console.error('Initialization error:', error);
         Toast.show('Initialization error', 'error');
@@ -183,12 +183,12 @@ function updateStepContent() {
 
 async function initializeVoices() {
     try {
-        console.log('Loading voices from TTS API...');
+        console.log('Loading voices from HeadTTS API...');
         
         const response = await fetch(`${TTS_API}/voices`);
         
         if (!response.ok) {
-            throw new Error('Failed to load voices from TTS API');
+            throw new Error('Failed to load voices from HeadTTS API');
         }
         
         const data = await response.json();
@@ -201,13 +201,14 @@ async function initializeVoices() {
             state.availableTTSVoices.forEach(voice => {
                 const option = document.createElement('option');
                 option.value = voice.id;
-                option.textContent = voice.name;
+                option.textContent = `${voice.name} [${voice.quality.toUpperCase()}]`;
                 select.appendChild(option);
             });
             
-            select.value = state.availableTTSVoices[0].id;
+            // Default to high quality male voice
+            select.value = 'male_high';
             
-            console.log(`✅ Loaded ${state.availableTTSVoices.length} TTS voices`);
+            console.log(`✅ Loaded ${state.availableTTSVoices.length} HeadTTS voices`);
             Toast.show(`${state.availableTTSVoices.length} voices loaded`, 'success');
         } else {
             select.innerHTML = '<option value="">No voices available</option>';
@@ -215,23 +216,26 @@ async function initializeVoices() {
         }
         
     } catch (error) {
-        console.error('Failed to load TTS voices:', error);
+        console.error('Failed to load HeadTTS voices:', error);
         
+        // Fallback voices
         const select = document.getElementById('voiceSelect');
         select.innerHTML = `
-            <option value="ryan">Ryan - American Male (Clear)</option>
-            <option value="joe">Joe - American Male (Deep)</option>
-            <option value="libritts">Libritts - American Male (Neutral)</option>
+            <option value="male_high">US Male - High Quality</option>
+            <option value="male_medium">US Male - Fast</option>
+            <option value="female_high">US Female - High Quality</option>
+            <option value="female_medium">US Female - Fast</option>
         `;
-        select.value = 'ryan';
+        select.value = 'male_high';
         
         state.availableTTSVoices = [
-            { id: 'ryan', name: 'Ryan - American Male (Clear)' },
-            { id: 'joe', name: 'Joe - American Male (Deep)' },
-            { id: 'libritts', name: 'Libritts - American Male (Neutral)' }
+            { id: 'male_high', name: 'US Male - High Quality', quality: 'high' },
+            { id: 'male_medium', name: 'US Male - Fast', quality: 'medium' },
+            { id: 'female_high', name: 'US Female - High Quality', quality: 'high' },
+            { id: 'female_medium', name: 'US Female - Fast', quality: 'medium' }
         ];
         
-        Toast.show('Using default voices', 'warning');
+        Toast.show('Using default HeadTTS voices', 'warning');
     }
 }
 
@@ -306,7 +310,7 @@ function renderVideoGrid(videoList) {
     }
 }
 
-// ============== REAL AUDIO GENERATION WITH PIPER TTS ==============
+// ============== HEADTTS AUDIO GENERATION ==============
 async function generateAudio() {
     if (!state.script.trim()) {
         Toast.show('Please enter a script first', 'error');
@@ -325,7 +329,7 @@ async function generateAudio() {
     const audioBtn = document.getElementById('generateAudioBtn');
     const audioPreview = document.getElementById('audioPreview');
     
-    audioStatus.innerHTML = `<i class="fas fa-robot"></i> Generating AI voiceover with Piper TTS...`;
+    audioStatus.innerHTML = `<i class="fas fa-robot"></i> Generating AI voiceover with HeadTTS (Phoneme-Aligned)...`;
     audioStatus.className = 'status-message';
     
     audioBtn.disabled = true;
@@ -336,36 +340,35 @@ async function generateAudio() {
     document.getElementById('prevStep2').disabled = true;
     
     try {
-        console.log('🎙️ Calling Piper TTS API...');
+        console.log('🎙️ Calling HeadTTS API...');
         console.log('Voice:', voiceId, 'Rate:', rate, 'Text length:', state.script.length);
         
-        await generateRealAudio(state.script, voiceId, rate);
+        await generateHeadTTSAudio(state.script, voiceId, rate);
         
-        console.log('📝 Generating subtitles with REAL timestamps from forced alignment');
-        state.subtitlesASS = generateSubtitles(state.script, state.audioDuration, state.wordTimestamps);
+        console.log('📝 Generating ONE-WORD-AT-A-TIME subtitles with PERFECT HeadTTS timestamps');
+        state.subtitlesASS = generateOneWordSubtitles(state.wordTimestamps);
         
-        audioStatus.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success);"></i> Audio generated successfully (${state.audioDuration.toFixed(1)}s)`;
+        audioStatus.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success);"></i> HeadTTS audio generated successfully (${state.audioDuration.toFixed(1)}s) - PHONEME ALIGNED`;
         audioStatus.className = 'status-message status-success';
         
         document.getElementById('nextStep2').disabled = false;
         document.getElementById('prevStep2').disabled = false;
         
         const preview = document.getElementById('subtitlePreview');
-        const words = state.wordTimestamps.length || state.script.split(/\s+/).length;
-        const syncType = state.wordTimestamps.length > 0 ? 'PERFECTLY SYNCED' : 'Auto-timed';
+        const words = state.wordTimestamps.length;
         preview.innerHTML = `
             <i class="fas fa-closed-captioning" style="color: var(--success);"></i>
-            <strong>Subtitles Ready:</strong> ${words} words • ${Math.round(state.audioDuration)}s • ${syncType}
+            <strong>Perfect Sync:</strong> ${words} words • ${Math.round(state.audioDuration)}s • ONE WORD AT A TIME
         `;
         preview.className = 'status-message status-success';
         
         audioBtn.disabled = false;
         audioBtn.innerHTML = '<i class="fas fa-play"></i> Regenerate Audio';
         
-        Toast.show(`Audio generated: ${state.audioDuration.toFixed(1)}s with ${words} word timestamps`, 'success');
+        Toast.show(`HeadTTS: ${state.audioDuration.toFixed(1)}s with ${words} phoneme-aligned timestamps`, 'success');
         
     } catch (error) {
-        console.error('❌ Audio generation failed:', error);
+        console.error('❌ HeadTTS generation failed:', error);
         
         audioStatus.innerHTML = `<i class="fas fa-exclamation-circle" style="color: var(--error);"></i> ${error.message}`;
         audioStatus.className = 'status-message status-error';
@@ -374,17 +377,14 @@ async function generateAudio() {
         audioBtn.innerHTML = '<i class="fas fa-play"></i> Generate Audio';
         document.getElementById('prevStep2').disabled = false;
         
-        Toast.show('Audio generation failed: ' + error.message, 'error', 5000);
+        Toast.show('HeadTTS generation failed: ' + error.message, 'error', 5000);
     }
 }
 
-// Piper TTS now gives us perfect word timestamps directly!
-// No alignment service needed - timestamps come from the TTS generation itself
-
-async function generateRealAudio(text, voiceId, rate) {
+async function generateHeadTTSAudio(text, voiceId, rate) {
     return new Promise(async (resolve, reject) => {
         try {
-            console.log(`Calling TTS API: ${TTS_API}/tts`);
+            console.log(`Calling HeadTTS API: ${TTS_API}/tts`);
             
             const response = await fetch(`${TTS_API}/tts`, {
                 method: 'POST',
@@ -400,14 +400,14 @@ async function generateRealAudio(text, voiceId, rate) {
             
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('TTS API error:', response.status, errorText);
+                console.error('HeadTTS API error:', response.status, errorText);
                 
-                let errorMsg = 'TTS generation failed';
+                let errorMsg = 'HeadTTS generation failed';
                 try {
                     const errorJson = JSON.parse(errorText);
                     errorMsg = errorJson.detail || errorMsg;
                 } catch (e) {
-                    errorMsg = `TTS API error: ${response.status}`;
+                    errorMsg = `HeadTTS API error: ${response.status}`;
                 }
                 
                 throw new Error(errorMsg);
@@ -415,19 +415,19 @@ async function generateRealAudio(text, voiceId, rate) {
             
             const data = await response.json();
             
-            console.log('✅ TTS API response received');
+            console.log('✅ HeadTTS API response received');
             console.log('Duration:', data.duration, 'Audio format:', data.audio_format);
-            console.log('Word timestamps from Piper:', data.word_timestamps ? data.word_timestamps.length : 0, 'words');
+            console.log('🎯 PERFECT word timestamps from HeadTTS:', data.word_timestamps.length, 'words');
             
             state.audioDuration = data.duration;
             state.audioBase64 = data.audio_base64;
             
-            // 🔥 USE PIPER'S WORD TIMESTAMPS DIRECTLY - NO ALIGNMENT NEEDED!
+            // 🔥 USE HEADTTS PHONEME-ALIGNED TIMESTAMPS - PERFECT SYNC!
             if (data.word_timestamps && data.word_timestamps.length > 0) {
                 state.wordTimestamps = data.word_timestamps;
-                console.log(`✨ Using ${data.word_timestamps.length} REAL timestamps from Piper TTS - PERFECT SYNC!`);
+                console.log(`✨ Using ${data.word_timestamps.length} PHONEME-ALIGNED timestamps from HeadTTS - PERFECT SYNC!`);
             } else {
-                console.warn('⚠️ No timestamps from Piper - using fallback estimation');
+                console.error('❌ No timestamps from HeadTTS - this should not happen!');
                 state.wordTimestamps = [];
             }
             
@@ -445,77 +445,32 @@ async function generateRealAudio(text, voiceId, rate) {
             audioPreview.src = blobUrl;
             
             console.log(`✅ Audio blob created: ${state.audioBlob.size} bytes, ${state.audioDuration}s`);
-            
-            if (state.wordTimestamps.length > 0) {
-                console.log(`✅ Using ${state.wordTimestamps.length} word timestamps from Piper TTS`);
-            } else {
-                console.warn('⚠️ No word timestamps - will use fallback timing');
-            }
+            console.log(`✅ ${state.wordTimestamps.length} phoneme-aligned word timestamps ready`);
             
             resolve();
             
         } catch (error) {
-            console.error('TTS generation error:', error);
+            console.error('HeadTTS generation error:', error);
             reject(error);
         }
     });
 }
 
 // ============================================================
-// SUBTITLE GENERATION WITH REAL WORD TIMESTAMPS
-// Uses actual timing data from forced alignment for perfect sync
+// ONE-WORD-AT-A-TIME SUBTITLE GENERATION
+// Uses HeadTTS phoneme-aligned timestamps for PERFECT sync
+// Only ONE word appears on screen at a time - clean, readable
 // ============================================================
 
-function generateSubtitles(text, duration, wordTimestamps = []) {
-    // If we have real timestamps from forced alignment, use them!
-    if (wordTimestamps && wordTimestamps.length > 0) {
-        return generateSubtitlesFromTimestamps(wordTimestamps);
+function generateOneWordSubtitles(wordTimestamps) {
+    if (!wordTimestamps || wordTimestamps.length === 0) {
+        console.error('❌ No word timestamps available!');
+        return '';
     }
     
-    // Fallback: use the old estimation method if timestamps unavailable
-    console.warn('⚠️ Using fallback subtitle timing (no timestamps from forced alignment)');
-    return generateSubtitlesFallback(text, duration);
-}
-
-function generateSubtitlesFromTimestamps(wordTimestamps) {
-    if (wordTimestamps.length === 0) return '';
+    console.log(`🎯 Generating ONE-WORD-AT-A-TIME subtitles from ${wordTimestamps.length} phoneme-aligned timestamps`);
     
-    console.log(`🎯 Generating subtitles from ${wordTimestamps.length} REAL word timestamps`);
-    
-    // ── Step 1: Group words into lines (max 22 chars for portrait) ─────────
-    const MAX_CHARS = 22;
-    const lines = [];
-    let curWords = [], curLen = 0;
-    
-    for (const ts of wordTimestamps) {
-        const word = ts.word;
-        const addLen = curLen === 0 ? word.length : word.length + 1;
-        
-        if (addLen + curLen > MAX_CHARS && curWords.length > 0) {
-            lines.push(curWords);
-            curWords = [ts];
-            curLen = word.length;
-        } else {
-            curWords.push(ts);
-            curLen += addLen;
-        }
-    }
-    if (curWords.length > 0) lines.push(curWords);
-    
-    // ── Step 2: Pair lines into 2-line blocks ──────────────────────────────
-    const blocks = [];
-    for (let i = 0; i < lines.length; i += 2) {
-        const group = i + 1 < lines.length ? [lines[i], lines[i + 1]] : [lines[i]];
-        const allWords = group.flat();
-        blocks.push({
-            lines: group,
-            allWords: allWords,
-            start: allWords[0].start,
-            end: allWords[allWords.length - 1].end
-        });
-    }
-    
-    // ── Step 3: Build ASS file with per-word highlighting ─────────────────
+    // ASS header for YouTube Shorts (1080x1920 portrait)
     const assHeader = `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
@@ -525,179 +480,30 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,72,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,4,1,5,80,80,0,1
+Style: Default,Arial Black,90,&H00FFFF00,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,5,80,80,180,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
     
-    const WHITE = '{\\c&H00FFFFFF&}';
-    const YELLOW = '{\\c&H0000FFFF&}';
-    const RESET = '{\\r}';
-    
     const dialogueLines = [];
     
-    blocks.forEach(block => {
-        block.allWords.forEach(activeWord => {
-            const lineStrings = block.lines.map(line => {
-                return line.map(w => {
-                    if (w === activeWord) {
-                        return `${YELLOW}${w.word}${RESET}${WHITE}`;
-                    }
-                    return `${WHITE}${w.word}`;
-                }).join(' ');
-            });
-            
-            const fullText = lineStrings.join('\\N');
-            
-            // Use REAL timestamps from forced alignment!
-            dialogueLines.push(
-                `Dialogue: 0,${formatASSTime(activeWord.start)},${formatASSTime(activeWord.end)},Default,,0,0,0,,${fullText}`
-            );
-        });
+    // Generate ONE subtitle event per word
+    // Each word appears alone, highlighted in yellow
+    wordTimestamps.forEach((wordData, index) => {
+        const word = wordData.word;
+        const start = wordData.start;
+        const end = wordData.end;
+        
+        // Format: one word, bright yellow, bold
+        const subtitle = `Dialogue: 0,${formatASSTime(start)},${formatASSTime(end)},Default,,0,0,0,,{\\c&H00FFFF&}{\\b1}${word}{\\b0}`;
+        
+        dialogueLines.push(subtitle);
     });
     
-    console.log(`✅ Generated ${dialogueLines.length} perfectly synced subtitle lines from forced alignment`);
+    console.log(`✅ Generated ${dialogueLines.length} one-word-at-a-time subtitle events`);
     
     return assHeader + '\n' + dialogueLines.join('\n') + '\n';
 }
-
-// Fallback method - improved estimation
-function generateSubtitlesFallback(text, duration) {
-    const rawWords = text.trim().split(/\s+/).filter(w => w.length > 0);
-    if (rawWords.length === 0) return '';
-    
-    console.log(`⚠️ Using improved estimation-based timing for ${rawWords.length} words over ${duration}s`);
-    
-    // More sophisticated word duration estimation
-    const words = rawWords.map(w => {
-        const clean = w.replace(/^["""''([{]/, '').replace(/["""'').,!?;:\]}]+$/, '');
-        const type = _subDetectSpecial(clean);
-        
-        // Base duration on syllable count (more accurate than character count)
-        const syllables = _estimateSyllables(clean);
-        let baseDur = 0;
-        
-        if (type === 'ip') {
-            const parts = clean.split('.');
-            baseDur = parts.reduce((s, p) => s + p.length * 0.28, 0) + (parts.length - 1) * 0.32;
-            baseDur = Math.max(baseDur, 2.0);
-        } else if (type === 'url') {
-            baseDur = Math.min(clean.length * 0.22, 8.0);
-        } else if (type === 'localhost') {
-            baseDur = 0.85;
-        } else if (type === 'acronym') {
-            baseDur = clean.length * 0.35;
-        } else if (type === 'path') {
-            const segs = clean.split('/').filter(Boolean);
-            baseDur = segs.reduce((s, sg) => s + 0.3 + sg.length * 0.05, 0.2);
-        } else if (type === 'email') {
-            baseDur = Math.min(clean.length * 0.18, 5.0);
-        } else {
-            // Normal words: ~0.15-0.25s per syllable for natural speech
-            baseDur = 0.2 + (syllables * 0.18);
-            
-            // Adjust for word complexity
-            if (clean.length > 10) baseDur += 0.1; // Long words take longer
-            if (/[.!?]$/.test(w)) baseDur += 0.25; // Sentence end pause
-            else if (/[,;:]$/.test(w)) baseDur += 0.15; // Clause pause
-        }
-        
-        return { text: w, clean: clean, type, baseDur };
-    });
-    
-    // Calculate total estimated time and scale factor
-    const totalEstimated = words.reduce((s, w) => s + w.baseDur, 0);
-    const scaleFactor = totalEstimated > 0 ? (duration * 0.95) / totalEstimated : 1;
-    
-    // Apply scaling and add natural gaps
-    const wordTimestamps = [];
-    let currentTime = 0.1; // Small initial delay
-    
-    words.forEach((w, idx) => {
-        const wordDur = w.baseDur * scaleFactor;
-        
-        // Inter-word gap (natural speech pauses)
-        let gap = 0;
-        if (idx > 0) {
-            if (/[.!?]$/.test(words[idx - 1].text)) {
-                gap = 0.3; // Longer pause after sentence
-            } else if (/[,;:]$/.test(words[idx - 1].text)) {
-                gap = 0.15; // Medium pause after clause
-            } else {
-                gap = 0.08; // Normal word gap
-            }
-        }
-        
-        const start = currentTime + gap;
-        const end = start + wordDur;
-        
-        wordTimestamps.push({
-            word: w.clean,
-            start: parseFloat(start.toFixed(3)),
-            end: parseFloat(Math.min(end, duration).toFixed(3))
-        });
-        
-        currentTime = end;
-    });
-    
-    // Final adjustment: ensure we use most of the audio duration
-    if (wordTimestamps.length > 0) {
-        const lastWord = wordTimestamps[wordTimestamps.length - 1];
-        if (lastWord.end < duration * 0.9) {
-            // Stretch all timestamps proportionally
-            const stretchFactor = (duration * 0.95) / lastWord.end;
-            wordTimestamps.forEach(ts => {
-                ts.start = parseFloat((ts.start * stretchFactor).toFixed(3));
-                ts.end = parseFloat((ts.end * stretchFactor).toFixed(3));
-            });
-        }
-    }
-    
-    console.log(`✅ Generated ${wordTimestamps.length} estimated timestamps`);
-    return generateSubtitlesFromTimestamps(wordTimestamps);
-}
-
-// Helper: Estimate syllable count (more accurate for speech timing)
-function _estimateSyllables(word) {
-    word = word.toLowerCase();
-    if (word.length <= 3) return 1;
-    
-    // Count vowel groups
-    let syllables = 0;
-    let prevWasVowel = false;
-    
-    for (let i = 0; i < word.length; i++) {
-        const isVowel = /[aeiouy]/.test(word[i]);
-        if (isVowel && !prevWasVowel) {
-            syllables++;
-        }
-        prevWasVowel = isVowel;
-    }
-    
-    // Adjust for silent 'e'
-    if (word.endsWith('e') && syllables > 1) {
-        syllables--;
-    }
-    
-    // Minimum 1 syllable
-    return Math.max(1, syllables);
-}
-
-// Helper functions for word type detection
-function _subDetectSpecial(word) {
-    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(word)) return 'ip';
-    if (/^https?:\/\//i.test(word)) return 'url';
-    if (/^www\./i.test(word)) return 'url';
-    if (/^localhost$/i.test(word)) return 'localhost';
-    if (/^[A-Z]{3,}$/.test(word)) return 'acronym';
-    if (/^\/[\w.\-/]+$/.test(word)) return 'path';
-    if (/^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$/.test(word)) return 'email';
-    return null;
-}
-
-// ============================================================
-// END SUBTITLE GENERATION
-// ============================================================
 
 function formatASSTime(seconds) {
     seconds = Math.max(0, seconds);
@@ -748,7 +554,7 @@ async function generateVideo() {
     
     statusMessage.innerHTML = `
         <i class="fas fa-robot"></i> 
-        Initializing ArchNemix AI Pipeline with PERFECT subtitle sync...
+        Initializing ArchNemix AI Pipeline with HeadTTS PHONEME-ALIGNED subtitles...
     `;
     statusMessage.className = 'status-message';
     
@@ -762,7 +568,7 @@ async function generateVideo() {
         console.log('Background:', state.selectedVideo);
         console.log('Audio size:', state.audioBase64.length, 'chars');
         console.log('Subtitles size:', state.subtitlesASS.length, 'chars');
-        console.log('Word timestamps:', state.wordTimestamps.length, 'words');
+        console.log('Word timestamps:', state.wordTimestamps.length, 'words (HeadTTS phoneme-aligned)');
         
         const response = await fetch(`${API_URL}/generate`, {
             method: 'POST',
@@ -799,7 +605,7 @@ async function generateVideo() {
         
         startJobPolling();
         
-        Toast.show('Video generation started with perfect subtitle sync', 'success');
+        Toast.show('Video generation started with HeadTTS phoneme-aligned subtitles', 'success');
         
     } catch (error) {
         console.error('Generation failed:', error);
@@ -900,7 +706,7 @@ function updateJobStatus(data) {
         
         statusMessage.innerHTML = `
             <i class="fas fa-check-circle" style="color: var(--success);"></i>
-            <strong>Success!</strong> Video generation completed with PERFECT subtitle sync.
+            <strong>Success!</strong> Video with HeadTTS phoneme-aligned ONE-WORD subtitles ready!
         `;
         statusMessage.className = 'status-message status-success';
         
@@ -974,10 +780,10 @@ function resetApplication() {
     document.getElementById('charCounter').className = 'char-counter';
     
     document.getElementById('audioPreview').src = '';
-    document.getElementById('audioStatus').innerHTML = '<i class="fas fa-info-circle"></i> Click "Generate Audio" to preview your script';
+    document.getElementById('audioStatus').innerHTML = '<i class="fas fa-info-circle"></i> Click "Generate Audio" to preview with HeadTTS';
     document.getElementById('audioStatus').className = 'status-message';
     
-    document.getElementById('subtitlePreview').innerHTML = '<i class="fas fa-closed-captioning"></i> Subtitles will be generated automatically';
+    document.getElementById('subtitlePreview').innerHTML = '<i class="fas fa-closed-captioning"></i> One-word-at-a-time subtitles will be generated';
     document.getElementById('subtitlePreview').className = 'status-message';
     
     document.querySelectorAll('.video-card').forEach(card => {
@@ -1018,7 +824,8 @@ window.debugState = () => {
         currentJob: state.currentJobId,
         isProcessing: state.isProcessing,
         availableVoices: state.availableTTSVoices.length,
-        wordTimestamps: state.wordTimestamps.length
+        wordTimestamps: state.wordTimestamps.length,
+        ttsEngine: 'HeadTTS (Phoneme-Aligned)'
     });
     return state;
 };
@@ -1027,7 +834,7 @@ window.testBackend = async () => {
     try {
         const results = { tts: {}, video: {} };
         
-        console.log('Testing TTS API...');
+        console.log('Testing HeadTTS API...');
         try {
             const ttsResponse = await fetch(`${TTS_API}/`);
             results.tts.root = { status: ttsResponse.status, ok: ttsResponse.ok };
@@ -1063,39 +870,41 @@ window.testBackend = async () => {
     }
 };
 
-window.testTTS = async (text = "Hello world, this is a test.") => {
+window.testTTS = async (text = "Hello world, this is a test with HeadTTS phoneme alignment.") => {
     try {
-        console.log('Testing TTS with text:', text);
+        console.log('Testing HeadTTS with text:', text);
         
         const response = await fetch(`${TTS_API}/tts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 text: text,
-                voice: 'ryan',
+                voice: 'male_high',
                 rate: 1.0
             })
         });
         
-        if (!response.ok) throw new Error(`TTS failed: ${response.status}`);
+        if (!response.ok) throw new Error(`HeadTTS failed: ${response.status}`);
         
         const data = await response.json();
-        console.log('✅ TTS Test Success:', data);
-        console.log('Word timestamps:', data.word_timestamps);
+        console.log('✅ HeadTTS Test Success:', data);
+        console.log('Phoneme-aligned word timestamps:', data.word_timestamps);
         
         const audio = new Audio('data:audio/wav;base64,' + data.audio_base64);
         audio.play();
         
-        Toast.show('TTS test successful', 'success');
+        Toast.show('HeadTTS test successful', 'success');
         return data;
         
     } catch (error) {
-        console.error('TTS test failed:', error);
-        Toast.show('TTS test failed', 'error');
+        console.error('HeadTTS test failed:', error);
+        Toast.show('HeadTTS test failed', 'error');
         return null;
     }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v12.0 - NATIVE PIPER TIMESTAMPS');
-console.log('🎯 Perfect subtitle sync using Piper TTS built-in word timestamps');
+console.log('🚀 ArchNemix Shorts Generator v13.0 - HEADTTS PHONEME-ALIGNED');
+console.log('🎯 Perfect subtitle sync using HeadTTS phoneme-aligned word timestamps');
+console.log('📝 ONE WORD AT A TIME subtitle display for maximum readability');
+console.log('🎤 Available voices: 2 Male + 2 Female (High & Medium quality)');
 console.log('📝 Available commands: debugState(), testBackend(), testTTS()');
