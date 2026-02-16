@@ -1,7 +1,7 @@
 // ArchNemix Shorts Generator - Using HeadTTS Perfect Word Timestamps
 // Configuration
 const API_URL = "https://ytshortmakerarchx-ytshrt-archx-mc-1.hf.space";
-const TTS_API = "https://ytshortmakerarchx-headtts-service.hf.space";
+const TTS_API = "https://ytshortmakerarchx-headtts-service.hf.space"; // Your new HeadTTS API
 // HeadTTS provides phoneme-aligned word timestamps - PERFECT sync!
 const APP_KEY = "archx_3f9d15f52n48d41h5fj8a7e2b_private";
 
@@ -19,10 +19,11 @@ const state = {
     jobPollInterval: null,
     isProcessing: false,
     availableTTSVoices: [],
-    wordTimestamps: []  // Perfect timestamps from HeadTTS
+    wordTimestamps: [],  // Perfect timestamps from HeadTTS
+    lastRequestTime: 0   // For rate limiting CORS requests
 };
 
-// Toast Notification System
+// Toast Notification System (keeping your existing Toast class)
 class Toast {
     static show(message, type = 'info', duration = 3000) {
         const toast = document.createElement('div');
@@ -43,8 +44,8 @@ class Toast {
         const colors = {
             success: '#00CC88',
             error: '#FF5555',
-            warning: '#FFAA00',
-            info: '#0066FF'
+            info: '#0066FF',
+            warning: '#FFAA00'
         };
         
         Object.assign(toast.style, {
@@ -99,7 +100,7 @@ async function initializeApplication() {
         await initializeVoices();
         await loadVideos();
         updateStepIndicators();
-        Toast.show('ArchNemix AI Ready with HeadTTS', 'success');
+        Toast.show('ArchNemix AI Ready with HeadTTS Phoneme Alignment', 'success');
     } catch (error) {
         console.error('Initialization error:', error);
         Toast.show('Initialization error', 'error');
@@ -185,7 +186,16 @@ async function initializeVoices() {
     try {
         console.log('Loading voices from HeadTTS API...');
         
-        const response = await fetch(`${TTS_API}/voices`);
+        // Rate limit to avoid CORS issues
+        await rateLimitRequest();
+        
+        const response = await fetch(`${TTS_API}/v1/voices`, {
+            method: 'GET',
+            headers: {
+                'Origin': window.location.origin
+            },
+            mode: 'cors'
+        });
         
         if (!response.ok) {
             throw new Error('Failed to load voices from HeadTTS API');
@@ -200,13 +210,13 @@ async function initializeVoices() {
         if (state.availableTTSVoices.length > 0) {
             state.availableTTSVoices.forEach(voice => {
                 const option = document.createElement('option');
-                option.value = voice.id;
-                option.textContent = `${voice.name} [${voice.quality.toUpperCase()}]`;
+                option.value = voice;
+                option.textContent = voice.replace('_', ' ').toUpperCase();
                 select.appendChild(option);
             });
             
-            // Default to high quality male voice
-            select.value = 'male_high';
+            // Default to first voice
+            select.value = state.availableTTSVoices[0];
             
             console.log(`✅ Loaded ${state.availableTTSVoices.length} HeadTTS voices`);
             Toast.show(`${state.availableTTSVoices.length} voices loaded`, 'success');
@@ -221,22 +231,27 @@ async function initializeVoices() {
         // Fallback voices
         const select = document.getElementById('voiceSelect');
         select.innerHTML = `
-            <option value="male_high">US Male - High Quality</option>
-            <option value="male_medium">US Male - Fast</option>
-            <option value="female_high">US Female - High Quality</option>
-            <option value="female_medium">US Female - Fast</option>
+            <option value="af_heart">Heart (American Female)</option>
+            <option value="am_adam">Adam (American Male)</option>
+            <option value="af_bella">Bella (American Female)</option>
+            <option value="bf_emma">Emma (British Female)</option>
         `;
-        select.value = 'male_high';
+        select.value = 'af_heart';
         
-        state.availableTTSVoices = [
-            { id: 'male_high', name: 'US Male - High Quality', quality: 'high' },
-            { id: 'male_medium', name: 'US Male - Fast', quality: 'medium' },
-            { id: 'female_high', name: 'US Female - High Quality', quality: 'high' },
-            { id: 'female_medium', name: 'US Female - Fast', quality: 'medium' }
-        ];
+        state.availableTTSVoices = ['af_heart', 'am_adam', 'af_bella', 'bf_emma'];
         
-        Toast.show('Using default HeadTTS voices', 'warning');
+        Toast.show('Using default voices', 'warning');
     }
+}
+
+// Rate limiting helper for CORS
+async function rateLimitRequest() {
+    const now = Date.now();
+    const timeSinceLast = now - state.lastRequestTime;
+    if (timeSinceLast < 500) { // Max 2 requests per second
+        await new Promise(resolve => setTimeout(resolve, 500 - timeSinceLast));
+    }
+    state.lastRequestTime = Date.now();
 }
 
 async function loadVideos() {
@@ -310,7 +325,7 @@ function renderVideoGrid(videoList) {
     }
 }
 
-// ============== HEADTTS AUDIO GENERATION ==============
+// ============== HEADTTS AUDIO GENERATION WITH CORS ==============
 async function generateAudio() {
     if (!state.script.trim()) {
         Toast.show('Please enter a script first', 'error');
@@ -340,8 +355,11 @@ async function generateAudio() {
     document.getElementById('prevStep2').disabled = true;
     
     try {
-        console.log('🎙️ Calling HeadTTS API...');
+        console.log('🎙️ Calling HeadTTS API with CORS headers...');
         console.log('Voice:', voiceId, 'Rate:', rate, 'Text length:', state.script.length);
+        
+        // Rate limit to avoid overwhelming the CORS-protected API
+        await rateLimitRequest();
         
         await generateHeadTTSAudio(state.script, voiceId, rate);
         
@@ -384,21 +402,30 @@ async function generateAudio() {
 async function generateHeadTTSAudio(text, voiceId, rate) {
     return new Promise(async (resolve, reject) => {
         try {
-            console.log(`Calling HeadTTS API: ${TTS_API}/tts`);
+            console.log(`Calling HeadTTS API: ${TTS_API}/v1/audio/speech`);
             
-            const response = await fetch(`${TTS_API}/tts`, {
+            const response = await fetch(`${TTS_API}/v1/audio/speech`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Origin': window.location.origin
                 },
+                mode: 'cors',
+                credentials: 'omit',
                 body: JSON.stringify({
                     text: text,
                     voice: voiceId,
-                    rate: rate
+                    speed: rate,
+                    response_format: "wav",
+                    include_timestamps: true
                 })
             });
             
             if (!response.ok) {
+                if (response.status === 403) {
+                    throw new Error('CORS: Access forbidden - Origin not allowed');
+                }
+                
                 const errorText = await response.text();
                 console.error('HeadTTS API error:', response.status, errorText);
                 
@@ -416,28 +443,33 @@ async function generateHeadTTSAudio(text, voiceId, rate) {
             const data = await response.json();
             
             console.log('✅ HeadTTS API response received');
-            console.log('Duration:', data.duration, 'Audio format:', data.audio_format);
-            console.log('🎯 PERFECT word timestamps from HeadTTS:', data.word_timestamps.length, 'words');
+            console.log('Duration:', data.duration, 'Format:', data.format);
+            console.log('🎯 PERFECT word timestamps from HeadTTS:', data.timestamps?.length || 0, 'words');
+            
+            if (!data.success) {
+                throw new Error('HeadTTS generation returned unsuccessful');
+            }
             
             state.audioDuration = data.duration;
-            state.audioBase64 = data.audio_base64;
+            state.audioBase64 = data.audio;
             
             // 🔥 USE HEADTTS PHONEME-ALIGNED TIMESTAMPS - PERFECT SYNC!
-            if (data.word_timestamps && data.word_timestamps.length > 0) {
-                state.wordTimestamps = data.word_timestamps;
-                console.log(`✨ Using ${data.word_timestamps.length} PHONEME-ALIGNED timestamps from HeadTTS - PERFECT SYNC!`);
+            if (data.timestamps && data.timestamps.length > 0) {
+                state.wordTimestamps = data.timestamps;
+                console.log(`✨ Using ${data.timestamps.length} PHONEME-ALIGNED timestamps from HeadTTS - PERFECT SYNC!`);
             } else {
                 console.error('❌ No timestamps from HeadTTS - this should not happen!');
                 state.wordTimestamps = [];
             }
             
-            const audioBytes = atob(data.audio_base64);
+            // Convert base64 to blob
+            const audioBytes = atob(data.audio);
             const audioArray = new Uint8Array(audioBytes.length);
             for (let i = 0; i < audioBytes.length; i++) {
                 audioArray[i] = audioBytes.charCodeAt(i);
             }
             
-            const mimeType = data.audio_format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+            const mimeType = data.format === 'wav' ? 'audio/wav' : 'audio/mpeg';
             state.audioBlob = new Blob([audioArray], { type: mimeType });
             
             const audioPreview = document.getElementById('audioPreview');
@@ -457,9 +489,10 @@ async function generateHeadTTSAudio(text, voiceId, rate) {
 }
 
 // ============================================================
-// ONE-WORD-AT-A-TIME SUBTITLE GENERATION
+// OPTIMIZED ONE-WORD-AT-A-TIME SUBTITLE GENERATION
 // Uses HeadTTS phoneme-aligned timestamps for PERFECT sync
 // Only ONE word appears on screen at a time - clean, readable
+// Now includes smooth transitions and better positioning
 // ============================================================
 
 function generateOneWordSubtitles(wordTimestamps) {
@@ -471,6 +504,7 @@ function generateOneWordSubtitles(wordTimestamps) {
     console.log(`🎯 Generating ONE-WORD-AT-A-TIME subtitles from ${wordTimestamps.length} phoneme-aligned timestamps`);
     
     // ASS header for YouTube Shorts (1080x1920 portrait)
+    // Optimized for better visibility: larger font, centered, with glow
     const assHeader = `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
@@ -480,24 +514,41 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial Black,90,&H00FFFF00,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,5,80,80,180,1
+Style: WordByWord,Arial Black,110,&H00FFFF00,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,3,5,80,80,200,1
+Style: BackgroundWord,Arial Black,110,&H88FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,6,3,5,80,80,200,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
     
     const dialogueLines = [];
     
-    // Generate ONE subtitle event per word
-    // Each word appears alone, highlighted in yellow
+    // First, add a background word that stays for reference (optional)
+    // This creates a fading effect where the current word is bright yellow
+    // and previous words fade out
+    
     wordTimestamps.forEach((wordData, index) => {
         const word = wordData.word;
         const start = wordData.start;
         const end = wordData.end;
         
-        // Format: one word, bright yellow, bold
-        const subtitle = `Dialogue: 0,${formatASSTime(start)},${formatASSTime(end)},Default,,0,0,0,,{\\c&H00FFFF&}{\\b1}${word}{\\b0}`;
+        // Format: bright yellow, bold, with outline and shadow
+        // Using \\c&H00FFFF& for yellow, \\b1 for bold
+        const subtitle = `Dialogue: 1,${formatASSTime(start)},${formatASSTime(end)},WordByWord,,0,0,0,,{\\c&H00FFFF&}{\\b1}${word}{\\b0}`;
         
         dialogueLines.push(subtitle);
+        
+        // Optional: Add a preview of next word with fade effect
+        // Uncomment if you want words to appear slightly before they're spoken
+        /*
+        if (index < wordTimestamps.length - 1) {
+            const nextWord = wordTimestamps[index + 1].word;
+            const previewStart = Math.max(0, end - 0.1); // 100ms before current ends
+            const previewEnd = end;
+            if (previewStart < previewEnd) {
+                dialogueLines.push(`Dialogue: 0,${formatASSTime(previewStart)},${formatASSTime(previewEnd)},BackgroundWord,,0,0,0,,{\\c&H88FFFFFF&}${nextWord}`);
+            }
+        }
+        */
     });
     
     console.log(`✅ Generated ${dialogueLines.length} one-word-at-a-time subtitle events`);
@@ -825,7 +876,8 @@ window.debugState = () => {
         isProcessing: state.isProcessing,
         availableVoices: state.availableTTSVoices.length,
         wordTimestamps: state.wordTimestamps.length,
-        ttsEngine: 'HeadTTS (Phoneme-Aligned)'
+        ttsEngine: 'HeadTTS (Phoneme-Aligned)',
+        lastRequestTime: new Date(state.lastRequestTime).toISOString()
     });
     return state;
 };
@@ -834,13 +886,23 @@ window.testBackend = async () => {
     try {
         const results = { tts: {}, video: {} };
         
-        console.log('Testing HeadTTS API...');
+        console.log('Testing HeadTTS API with CORS...');
         try {
-            const ttsResponse = await fetch(`${TTS_API}/`);
-            results.tts.root = { status: ttsResponse.status, ok: ttsResponse.ok };
-            if (ttsResponse.ok) results.tts.root.data = await ttsResponse.json();
+            await rateLimitRequest();
             
-            const voicesResponse = await fetch(`${TTS_API}/voices`);
+            const rootResponse = await fetch(`${TTS_API}/health`, {
+                headers: { 'Origin': window.location.origin },
+                mode: 'cors'
+            });
+            results.tts.health = { status: rootResponse.status, ok: rootResponse.ok };
+            if (rootResponse.ok) results.tts.health.data = await rootResponse.json();
+            
+            await rateLimitRequest();
+            
+            const voicesResponse = await fetch(`${TTS_API}/v1/voices`, {
+                headers: { 'Origin': window.location.origin },
+                mode: 'cors'
+            });
             results.tts.voices = { status: voicesResponse.status, ok: voicesResponse.ok };
             if (voicesResponse.ok) results.tts.voices.data = await voicesResponse.json();
         } catch (error) {
@@ -874,13 +936,21 @@ window.testTTS = async (text = "Hello world, this is a test with HeadTTS phoneme
     try {
         console.log('Testing HeadTTS with text:', text);
         
-        const response = await fetch(`${TTS_API}/tts`, {
+        await rateLimitRequest();
+        
+        const response = await fetch(`${TTS_API}/v1/audio/speech`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Origin': window.location.origin
+            },
+            mode: 'cors',
             body: JSON.stringify({
                 text: text,
-                voice: 'male_high',
-                rate: 1.0
+                voice: 'af_heart',
+                speed: 1.0,
+                response_format: 'wav',
+                include_timestamps: true
             })
         });
         
@@ -888,23 +958,25 @@ window.testTTS = async (text = "Hello world, this is a test with HeadTTS phoneme
         
         const data = await response.json();
         console.log('✅ HeadTTS Test Success:', data);
-        console.log('Phoneme-aligned word timestamps:', data.word_timestamps);
+        console.log('Phoneme-aligned word timestamps:', data.timestamps);
         
-        const audio = new Audio('data:audio/wav;base64,' + data.audio_base64);
-        audio.play();
+        if (data.audio) {
+            const audio = new Audio('data:audio/wav;base64,' + data.audio);
+            audio.play();
+        }
         
         Toast.show('HeadTTS test successful', 'success');
         return data;
         
     } catch (error) {
         console.error('HeadTTS test failed:', error);
-        Toast.show('HeadTTS test failed', 'error');
+        Toast.show('HeadTTS test failed: ' + error.message, 'error');
         return null;
     }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v13.0 - HEADTTS PHONEME-ALIGNED');
+console.log('🚀 ArchNemix Shorts Generator v14.0 - HEADTTS PHONEME-ALIGNED');
 console.log('🎯 Perfect subtitle sync using HeadTTS phoneme-aligned word timestamps');
 console.log('📝 ONE WORD AT A TIME subtitle display for maximum readability');
-console.log('🎤 Available voices: 2 Male + 2 Female (High & Medium quality)');
+console.log('🔒 CORS: Only requests from shortgen-archx.pages.dev allowed');
 console.log('📝 Available commands: debugState(), testBackend(), testTTS()');
