@@ -1,10 +1,11 @@
-// ArchNemix Shorts Generator - Complete with Kokoro-82M + ArchxAUDSBT Alignment
+// ArchNemix Shorts Generator - Kokoro-82M ONNX Timestamped
+// Exact word timestamps from model's duration predictor (~12.5ms resolution)
+// No aligner needed.
 // ============================================================================
 
 // ========== CONFIGURATION ==========
 const API_URL = "https://ytshortmakerarchx-ytshrt-archx-mc-1.hf.space";
-const TTS_API = "https://ytshortmakerarchx-headtts-service.hf.space"; // Kokoro-82M API
-const ALIGNER_API = "https://ytshortmakerarchx-archxaudsbt.hf.space"; // Alignment service
+const TTS_API = "https://ytshortmakerarchx-headtts-service.hf.space"; // Kokoro-82M ONNX
 const APP_KEY = "archx_3f9d15f52n48d41h5fj8a7e2b_private";
 
 // ========== APPLICATION STATE ==========
@@ -21,9 +22,7 @@ const state = {
     jobPollInterval: null,
     isProcessing: false,
     availableTTSVoices: [],
-    wordTimestamps: [],
-    alignmentJobId: "",
-    alignmentStatus: "pending"
+    wordTimestamps: []
 };
 
 // ========== TOAST NOTIFICATION SYSTEM ==========
@@ -73,7 +72,7 @@ document.head.appendChild(toastStyles);
 
 // ========== MAIN INITIALIZATION ==========
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('✨ ArchNemix Shorts Generator with ArchxAUDSBT Alignment v2');
+    console.log('✨ ArchNemix Shorts Generator v3.0 — ONNX Timestamped');
     initializeApplication();
 });
 
@@ -83,7 +82,7 @@ async function initializeApplication() {
         await initializeVoices();
         await loadVideos();
         updateStepIndicators();
-        Toast.show('Ready with ArchxAUDSBT alignment', 'success');
+        Toast.show('Ready — exact timestamps from ONNX model', 'success');
     } catch (error) {
         console.error('Initialization error:', error);
         Toast.show('Initialization error', 'error');
@@ -264,118 +263,7 @@ function renderVideoGrid(videoList) {
     if (first) setTimeout(() => first.click(), 100);
 }
 
-// ========== FORCED ALIGNMENT (ArchxAUDSBT) ==========
-
-/**
- * Call the ArchxAUDSBT alignment service.
- * Returns ASS subtitle string on success, throws on failure.
- *
- * RESPONSE CONTRACT (v2.0.0):
- *   Sync  → { status:"completed", ass_subtitles: "<string>", timestamps:[...] }
- *   Async → { status:"processing", job_id:"..." }
- */
-async function alignSubtitlesWithService(audioBase64, text, timestamps) {
-    const statusMessage = document.getElementById('audioStatus');
-
-    const updateStatus = (html) => {
-        if (statusMessage) statusMessage.innerHTML = html;
-    };
-
-    updateStatus(`<i class="fas fa-robot"></i> Sending to ArchxAUDSBT alignment service...`);
-    console.log('🔧 Aligner:', ALIGNER_API);
-
-    const resp = await fetch(`${ALIGNER_API}/align`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'cors',
-        body: JSON.stringify({
-            audio: audioBase64,
-            text: text,
-            initial_timestamps: timestamps,
-            output_format: 'ass',
-            language: 'en',
-            sample_rate: 24000,
-        }),
-    });
-
-    if (!resp.ok) {
-        const errText = await resp.text();
-        throw new Error(`Aligner HTTP ${resp.status}: ${errText}`);
-    }
-
-    const data = await resp.json();
-    console.log('Aligner response:', data);
-
-    // Synchronous completion — ass_subtitles is always a string
-    if (data.status === 'completed' && typeof data.ass_subtitles === 'string') {
-        console.log('✅ Alignment synchronous complete');
-        return data.ass_subtitles;
-    }
-
-    // Async job — poll for result
-    if (data.status === 'processing' && data.job_id) {
-        state.alignmentJobId = data.job_id;
-        updateStatus(`<i class="fas fa-spinner fa-spin"></i> Alignment in progress...`);
-        return await pollAlignmentResult(data.job_id, updateStatus);
-    }
-
-    // Unexpected shape
-    console.warn('Unexpected aligner response:', data);
-    throw new Error('Unexpected alignment service response format');
-}
-
-async function pollAlignmentResult(jobId, updateStatus) {
-    return new Promise((resolve, reject) => {
-        let attempts = 0;
-        const MAX = 90;   // 90 × 2 s = 3 min max
-
-        const interval = setInterval(async () => {
-            attempts++;
-
-            try {
-                const resp = await fetch(`${ALIGNER_API}/job/${jobId}`, { mode: 'cors' });
-
-                // 404 early in job lifecycle — keep waiting
-                if (resp.status === 404 && attempts < 5) return;
-
-                if (!resp.ok) {
-                    clearInterval(interval);
-                    reject(new Error(`Job status HTTP ${resp.status}`));
-                    return;
-                }
-
-                const data = await resp.json();
-                const pct = data.progress || Math.round((attempts / MAX) * 100);
-                updateStatus(`<i class="fas fa-spinner fa-spin"></i> Aligning subtitles… ${pct}%`);
-
-                if (data.status === 'completed') {
-                    clearInterval(interval);
-                    // ass_subtitles is the authoritative field
-                    const ass = data.ass_subtitles || data.result;
-                    if (typeof ass === 'string' && ass.length > 0) {
-                        resolve(ass);
-                    } else {
-                        reject(new Error('Job completed but no ASS subtitles in response'));
-                    }
-                } else if (data.status === 'failed') {
-                    clearInterval(interval);
-                    reject(new Error(data.error || 'Alignment job failed'));
-                } else if (attempts >= MAX) {
-                    clearInterval(interval);
-                    reject(new Error('Alignment timeout (3 min)'));
-                }
-            } catch (err) {
-                console.warn(`Poll attempt ${attempts} error (continuing):`, err);
-                if (attempts >= MAX) {
-                    clearInterval(interval);
-                    reject(new Error('Alignment polling failed'));
-                }
-            }
-        }, 2000);
-    });
-}
-
-// ========== KOKORO-82M AUDIO GENERATION ==========
+// ========== AUDIO GENERATION ==========
 async function generateAudio() {
     if (!state.script.trim()) {
         Toast.show('Please enter a script first', 'error');
@@ -400,79 +288,49 @@ async function generateAudio() {
         if (audioStatus) { audioStatus.innerHTML = html; audioStatus.className = cls; }
     };
 
-    setStatus(`<i class="fas fa-robot"></i> Step 1: Generating audio with Kokoro-82M...`);
-    if (audioBtn)     { audioBtn.disabled = true; audioBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...'; }
-    if (audioPreview)   audioPreview.src = '';
-    if (nextBtn)        nextBtn.disabled = true;
-    if (prevBtn)        prevBtn.disabled = true;
+    setStatus(`<i class="fas fa-robot"></i> Generating audio with Kokoro-82M...`);
+    if (audioBtn)   { audioBtn.disabled = true; audioBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...'; }
+    if (audioPreview) audioPreview.src = '';
+    if (nextBtn)    nextBtn.disabled = true;
+    if (prevBtn)    prevBtn.disabled = true;
 
     try {
-        // ── Step 1: Kokoro-82M → audio + rough word timestamps ──
         await generateKokoroAudio(state.script, voiceId, rate);
-        console.log(`✅ Kokoro done: ${state.audioDuration.toFixed(1)}s, ${state.wordTimestamps.length} words`);
 
-        // ── Step 2: ArchxAUDSBT → perfectly aligned ASS ──
-        setStatus(`<i class="fas fa-robot"></i> Step 2: Sending to ArchxAUDSBT alignment service...`);
+        // Timestamps from ONNX model are exact — build subtitles directly
+        state.subtitlesASS = buildSubtitles(state.wordTimestamps);
 
-        let alignedASS = null;
-        let alignedOK  = false;
+        console.log(`✅ Done: ${state.audioDuration.toFixed(1)}s, ${state.wordTimestamps.length} words`);
 
-        try {
-            alignedASS = await alignSubtitlesWithService(
-                state.audioBase64,
-                state.script,
-                state.wordTimestamps,
-            );
-            alignedOK = true;
-            console.log('✅ ArchxAUDSBT alignment complete');
-        } catch (alignErr) {
-            console.warn('⚠️ Alignment failed, falling back to Kokoro timestamps:', alignErr.message);
-        }
+        setStatus(
+            `<i class="fas fa-check-circle" style="color:var(--success)"></i>
+             Audio ready! ${state.audioDuration.toFixed(1)}s · ${state.wordTimestamps.length} words`,
+            'status-message status-success',
+        );
 
-        state.subtitlesASS = alignedOK
-            ? alignedASS
-            : generateFallbackSubtitles(state.wordTimestamps);
-
-        // ── Step 3: Update UI ──
-        if (alignedOK) {
-            setStatus(
-                `<i class="fas fa-check-circle" style="color:var(--success)"></i>
-                 Audio + ArchxAUDSBT alignment complete! (${state.audioDuration.toFixed(1)}s)`,
-                'status-message status-success',
-            );
-
-            const preview = document.getElementById('subtitlePreview');
-            if (preview) {
-                preview.innerHTML = `
-                    <i class="fas fa-closed-captioning" style="color:var(--success)"></i>
-                    <strong>Perfect Sync:</strong> ${state.wordTimestamps.length} words
-                    — force-aligned by ArchxAUDSBT
-                `;
-                preview.className = 'status-message status-success';
-            }
-
-            Toast.show('ArchxAUDSBT alignment complete — perfect sync!', 'success');
-        } else {
-            setStatus(
-                `<i class="fas fa-exclamation-circle" style="color:var(--warning)"></i>
-                 Alignment unavailable — using Kokoro timestamps`,
-                'status-message status-warning',
-            );
-            Toast.show('Using Kokoro timestamps (alignment unavailable)', 'warning');
+        const preview = document.getElementById('subtitlePreview');
+        if (preview) {
+            preview.innerHTML = `
+                <i class="fas fa-closed-captioning" style="color:var(--success)"></i>
+                <strong>Exact sync</strong> — ${state.wordTimestamps.length} words · ~12.5ms precision
+            `;
+            preview.className = 'status-message status-success';
         }
 
         if (nextBtn) nextBtn.disabled = false;
         if (prevBtn) prevBtn.disabled = false;
         if (audioBtn) { audioBtn.disabled = false; audioBtn.innerHTML = '<i class="fas fa-play"></i> Regenerate Audio'; }
 
+        Toast.show(`Audio ready — exact timestamps`, 'success');
+
     } catch (error) {
-        console.error('❌ Audio generation failed:', error);
+        console.error('❌ Generation failed:', error);
         setStatus(
             `<i class="fas fa-exclamation-circle" style="color:var(--error)"></i> ${error.message}`,
             'status-message status-error',
         );
         if (audioBtn) { audioBtn.disabled = false; audioBtn.innerHTML = '<i class="fas fa-play"></i> Generate Audio'; }
-        if (prevBtn)    prevBtn.disabled = false;
+        if (prevBtn)  prevBtn.disabled = false;
         Toast.show('Failed: ' + error.message, 'error', 5000);
     }
 }
@@ -510,8 +368,9 @@ async function generateKokoroAudio(text, voiceId, rate) {
     return data;
 }
 
-// Fallback: build ASS directly from Kokoro chunk timestamps
-function generateFallbackSubtitles(wordTimestamps) {
+// Build ASS subtitles from ONNX timestamps
+// 3-4 word groups, active word yellow, rest white
+function buildSubtitles(wordTimestamps) {
     if (!wordTimestamps || wordTimestamps.length === 0) return '';
 
     const header = `[Script Info]
@@ -523,14 +382,66 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: KokoroWord,Arial Black,110,&H00FFFF00,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,3,5,80,80,200,1
+Style: GroupSub,Arial Black,95,&H00FFFFFF,&H00FFFFFF,&H00000000,&HCC000000,-1,0,0,0,100,100,2,0,1,5,3,5,80,80,160,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
 
-    const lines = wordTimestamps.map(w =>
-        `Dialogue: 1,${formatASSTime(w.start)},${formatASSTime(w.end)},KokoroWord,,0,0,0,,{\\c&H00FFFF&}{\\b1}${w.word}{\\b0}`
-    );
+    const YELLOW = '{\\c&H00FFFF&\\b1}';
+    const WHITE  = '{\\c&H00FFFFFF&\\b0}';
+    const RESET  = '{\\r}';
+    const BREAK_PUNCT = new Set(['.', '!', '?', ',', ';', ':', '—', '–']);
+    const TARGET = 3;
+    const MAX    = 4;
+
+    // Group words into chunks of ~3-4
+    const groups = [];
+    let current  = [];
+
+    for (const w of wordTimestamps) {
+        const text = (w.word || '').trim();
+        if (!text) continue;
+        current.push(w);
+        const last = text[text.length - 1];
+        const hardBreak = '.!?'.includes(last);
+        const softBreak = ',;:—–'.includes(last) && current.length >= 2;
+        const sizeBreak = current.length >= MAX;
+        if (hardBreak || softBreak || sizeBreak || current.length >= TARGET) {
+            groups.push(current);
+            current = [];
+        }
+    }
+    if (current.length) groups.push(current);
+
+    // Build dialogue lines
+    const lines = [];
+    for (const group of groups) {
+        if (!group.length) continue;
+        const cleanWords = group.map(w =>
+            (w.word || '').replace(/[{}\\]/g, '')
+        );
+
+        for (let i = 0; i < group.length; i++) {
+            const w = group[i];
+            let wStart = w.start;
+            let wEnd   = w.end <= w.start ? w.start + 0.05 : w.end;
+
+            // Build styled text
+            const parts = cleanWords.map((word, j) =>
+                j === i ? `${YELLOW}${word}${RESET}` : `${WHITE}${word}${RESET}`
+            );
+
+            // Split into 2 lines — ceiling so more words go on top
+            const half   = Math.ceil(parts.length / 2);
+            const line1  = parts.slice(0, half).join(' ');
+            const line2  = parts.slice(half).join(' ');
+            const assText = line1 + (line2 ? '\\N' + line2 : '');
+
+            lines.push(
+                `Dialogue: 1,${formatASSTime(wStart)},${formatASSTime(wEnd)},GroupSub,,0,0,0,,${assText}`
+            );
+        }
+    }
 
     return header + '\n' + lines.join('\n') + '\n';
 }
@@ -682,7 +593,7 @@ function resetApplication() {
     reset('charCount', 'textContent', '0');
     reset('charCounter', 'className', 'char-counter');
     reset('audioPreview', 'src', '');
-    reset('audioStatus', 'innerHTML', '<i class="fas fa-info-circle"></i> Click "Generate Audio" to preview with Kokoro-82M');
+    reset('audioStatus', 'innerHTML', '<i class="fas fa-info-circle"></i> Click "Generate Audio" to generate with exact timestamps');
     reset('audioStatus', 'className', 'status-message');
     reset('subtitlePreview', 'innerHTML', '<i class="fas fa-closed-captioning"></i> One-word-at-a-time subtitles will be generated');
     reset('resultSection', 'style.display', 'none');
@@ -706,65 +617,36 @@ function resetApplication() {
 // ========== DEBUG UTILITIES ==========
 window.debugState = () => {
     console.log('🔍 ArchNemix State:', {
-        scriptLength: state.script.length,
-        audioDuration: state.audioDuration,
-        audioSize: state.audioBase64.length,
-        subsSize: state.subtitlesASS.length,
-        selectedVideo: state.selectedVideo,
-        currentJob: state.currentJobId,
-        isProcessing: state.isProcessing,
+        scriptLength:   state.script.length,
+        audioDuration:  state.audioDuration,
+        audioSize:      state.audioBase64.length,
+        subsSize:       state.subtitlesASS.length,
+        selectedVideo:  state.selectedVideo,
+        currentJob:     state.currentJobId,
+        isProcessing:   state.isProcessing,
         wordTimestamps: state.wordTimestamps.length,
-        ttsEngine: 'Kokoro-82M',
-        aligner: 'ArchxAUDSBT v2',
+        ttsEngine:      'Kokoro-82M ONNX Timestamped',
+        timestampRes:   '~12.5ms (exact from pred_dur)',
     });
     return state;
 };
 
-window.testAlignment = async (text = "Hello world, this is a test of the ArchxAUDSBT alignment service.") => {
-    console.log('🧪 Testing Kokoro-82M → ArchxAUDSBT pipeline...');
-    try {
-        const ttsResp = await fetch(`${TTS_API}/tts`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, mode: 'cors',
-            body: JSON.stringify({ text, voice: 'male_high', rate: 1.0 }),
-        });
-        if (!ttsResp.ok) throw new Error(`TTS HTTP ${ttsResp.status}`);
-        const ttsData = await ttsResp.json();
-        console.log(`✅ Kokoro: ${ttsData.duration}s, ${ttsData.word_timestamps?.length} words`);
-
-        const alignResp = await fetch(`${ALIGNER_API}/align`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, mode: 'cors',
-            body: JSON.stringify({
-                audio: ttsData.audio_base64, text,
-                initial_timestamps: ttsData.word_timestamps,
-                output_format: 'ass', language: 'en', sample_rate: 24000,
-            }),
-        });
-        if (!alignResp.ok) throw new Error(`Aligner HTTP ${alignResp.status}`);
-        const alignData = await alignResp.json();
-        console.log('✅ Aligner response:', alignData.status);
-        if (alignData.ass_subtitles) console.log('ASS preview:', alignData.ass_subtitles.substring(0, 400));
-        Toast.show('Pipeline test complete — check console', 'success');
-        return alignData;
-    } catch (err) {
-        console.error('Test failed:', err);
-        Toast.show('Test failed: ' + err.message, 'error');
-        return null;
-    }
-};
-
-window.testTTS = async (text = "Hello, Kokoro-82M test.") => {
+window.testTTS = async (text = "Hello, this is a test of Kokoro ONNX timestamped.") => {
     try {
         const resp = await fetch(`${TTS_API}/tts`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, mode: 'cors',
             body: JSON.stringify({ text, voice: 'male_high', rate: 1.0 }),
         });
         const data = await resp.json();
-        console.log('✅ TTS:', data.duration + 's', data.word_timestamps?.length + ' words');
+        console.log(`✅ TTS: ${data.duration}s, ${data.word_timestamps?.length} words`);
+        console.log('Timestamp source:', data.timestamp_source);
+        console.log('Resolution ms:', data.timestamp_res_ms);
+        console.log('First 5 words:', data.word_timestamps?.slice(0, 5));
         new Audio('data:audio/wav;base64,' + data.audio_base64).play();
         return data;
     } catch (err) { console.error('TTS test failed:', err); }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v2.0');
-console.log('🎯 TTS: Kokoro-82M | 🔧 Aligner: ArchxAUDSBT v2.0');
-console.log('📝 Debug: debugState() | testAlignment() | testTTS()');
+console.log('🚀 ArchNemix Shorts Generator v3.0');
+console.log('🎯 TTS: Kokoro-82M ONNX Timestamped (~12.5ms exact timestamps)');
+console.log('📝 Debug: debugState() | testTTS()');
