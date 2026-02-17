@@ -368,6 +368,11 @@ async function generateKokoroAudio(text, voiceId, rate) {
     return data;
 }
 
+// How many seconds BEFORE the word to show the subtitle.
+// 0.10 = 100ms early — subtitle pops up slightly ahead of speech.
+// Change this one number to tune sync.
+const SUBTITLE_LEAD_S = 0.10;
+
 // Build ASS subtitles from ONNX timestamps
 // 3-4 word groups, active word yellow, rest white
 function buildSubtitles(wordTimestamps) {
@@ -423,8 +428,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
 
         for (let i = 0; i < group.length; i++) {
             const w = group[i];
-            let wStart = w.start;
-            let wEnd   = w.end <= w.start ? w.start + 0.05 : w.end;
+            // Subtract lead offset so subtitle appears 100ms before speech
+            let wStart = Math.max(0, w.start - SUBTITLE_LEAD_S);
+            let wEnd   = Math.max(wStart + 0.05, w.end - SUBTITLE_LEAD_S);
 
             // Build styled text
             const parts = cleanWords.map((word, j) =>
