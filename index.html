@@ -23,11 +23,7 @@
             --error: #FF5555;
         }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -40,10 +36,8 @@
         /* Navigation */
         .navbar {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(0, 0, 0, 0.95);
+            top: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.95);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid var(--border);
             z-index: 1000;
@@ -52,426 +46,415 @@
             justify-content: space-between;
             align-items: center;
         }
+        .logo { display: flex; align-items: center; gap: 0.75rem; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+        .logo-icon { color: var(--accent); font-size: 1.8rem; }
+        .logo-text { background: linear-gradient(135deg, var(--accent), var(--accent-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .badge { background: var(--accent); color: white; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 12px; font-weight: 600; margin-left: 0.5rem; }
         
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-        
-        .logo-icon {
-            color: var(--accent);
-            font-size: 1.8rem;
-        }
-        
-        .logo-text {
-            background: linear-gradient(135deg, var(--accent), var(--accent-light));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .badge {
-            background: var(--accent);
-            color: white;
-            font-size: 0.7rem;
-            padding: 0.2rem 0.6rem;
-            border-radius: 12px;
-            font-weight: 600;
-            margin-left: 0.5rem;
-        }
-        
-        /* Hero Section */
-        .hero {
-            padding: 8rem 2rem 4rem;
-            text-align: center;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        
-        .hero h1 {
-            font-size: 3.5rem;
-            font-weight: 700;
-            line-height: 1.1;
-            margin-bottom: 1.5rem;
-            background: linear-gradient(135deg, #FFFFFF, var(--accent-light));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .hero p {
-            font-size: 1.25rem;
-            color: var(--text-secondary);
-            line-height: 1.6;
-            margin-bottom: 2rem;
-        }
+        /* Hero */
+        .hero { padding: 8rem 2rem 4rem; text-align: center; max-width: 800px; margin: 0 auto; }
+        .hero h1 { font-size: 3.5rem; font-weight: 700; line-height: 1.1; margin-bottom: 1.5rem; background: linear-gradient(135deg, #FFFFFF, var(--accent-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero p { font-size: 1.25rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 2rem; }
         
         /* Steps Navigation */
-        .steps-nav {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin: 3rem auto;
-            max-width: 800px;
-            padding: 0 2rem;
-        }
-        
-        .step-indicator {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        
-        .step-number {
-            width: 36px;
-            height: 36px;
-            background: var(--card-bg);
-            border: 2px solid var(--border);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .step-indicator.active .step-number {
-            background: var(--accent);
-            border-color: var(--accent);
-        }
-        
-        .step-text {
-            font-weight: 500;
-            color: var(--text-secondary);
-            transition: color 0.3s ease;
-        }
-        
-        .step-indicator.active .step-text {
-            color: var(--text);
-        }
-        
-        .step-connector {
-            flex: 1;
-            height: 2px;
-            background: var(--border);
-            margin: 0 1rem;
-        }
+        .steps-nav { display: flex; justify-content: center; align-items: center; gap: 0; margin: 3rem auto; max-width: 900px; padding: 0 2rem; }
+        .step-indicator { display: flex; align-items: center; gap: 0.5rem; cursor: default; }
+        .step-number { width: 36px; height: 36px; background: var(--card-bg); border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; transition: all 0.3s ease; font-size: 0.9rem; }
+        .step-indicator.active .step-number { background: var(--accent); border-color: var(--accent); }
+        .step-indicator.completed .step-number { background: var(--success); border-color: var(--success); }
+        .step-text { font-weight: 500; color: var(--text-secondary); transition: color 0.3s ease; font-size: 0.9rem; white-space: nowrap; }
+        .step-indicator.active .step-text { color: var(--text); }
+        .step-indicator.completed .step-text { color: var(--success); }
+        .step-connector { flex: 1; height: 2px; background: var(--border); margin: 0 0.5rem; min-width: 20px; }
         
         /* Main Content */
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 0 2rem 4rem;
-        }
-        
-        .step-content {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 2.5rem;
-            margin-bottom: 2rem;
-            display: none;
-            animation: fadeIn 0.5s ease;
-        }
-        
-        .step-content.active {
-            display: block;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .step-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-        
-        .step-header i {
-            color: var(--accent);
-            font-size: 1.5rem;
-        }
-        
-        .step-header h2 {
-            font-size: 1.75rem;
-            font-weight: 600;
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
-        
-        textarea, select, input {
-            width: 100%;
-            padding: 1rem;
-            background: var(--secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            color: var(--text);
-            font-family: 'Inter', sans-serif;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-        
-        textarea:focus, select:focus, input:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
-        }
-        
-        textarea {
-            min-height: 200px;
-            resize: vertical;
-        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 2rem 4rem; }
+        .step-content { background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; padding: 2.5rem; margin-bottom: 2rem; display: none; animation: fadeIn 0.4s ease; }
+        .step-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .step-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+        .step-header i { color: var(--accent); font-size: 1.5rem; }
+        .step-header h2 { font-size: 1.75rem; font-weight: 600; }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-secondary); }
+        textarea, select, input[type="text"], input[type="number"], input[type="range"] { width: 100%; padding: 1rem; background: var(--secondary); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 1rem; transition: all 0.3s ease; }
+        textarea:focus, select:focus, input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,102,255,0.1); }
+        textarea { min-height: 200px; resize: vertical; }
         
         /* Video Grid */
-        .video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin: 2rem 0;
-        }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
+        .video-card { background: var(--secondary); border: 2px solid var(--border); border-radius: 12px; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; text-align: center; }
+        .video-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .video-card.selected { border-color: var(--accent); background: rgba(0,102,255,0.05); }
+        .video-thumb { width: 100%; aspect-ratio: 9/16; background: linear-gradient(135deg, var(--secondary), #222222); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; color: var(--text-secondary); font-size: 2rem; }
         
-        .video-card {
-            background: var(--secondary);
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-        }
-        
-        .video-card:hover {
-            border-color: var(--accent);
-            transform: translateY(-2px);
-        }
-        
-        .video-card.selected {
-            border-color: var(--accent);
-            background: rgba(0, 102, 255, 0.05);
-        }
-        
-        .video-thumb {
-            width: 100%;
-            aspect-ratio: 9/16;
-            background: linear-gradient(135deg, var(--secondary), #222222);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 1rem;
-            color: var(--text-secondary);
-            font-size: 2rem;
-        }
-        
-        .video-card.selected .video-thumb {
-            color: var(--accent);
-        }
-        
-        /* Progress Bar */
-        .progress-container {
-            margin: 2rem 0;
-        }
-        
-        .progress-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-        }
-        
-        .progress-bar {
-            height: 6px;
-            background: var(--secondary);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--accent), var(--accent-light));
-            width: 0%;
-            transition: width 0.5s ease;
-        }
+        /* Progress */
+        .progress-container { margin: 2rem 0; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+        .progress-bar { height: 6px; background: var(--secondary); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-light)); width: 0%; transition: width 0.5s ease; }
         
         /* Buttons */
-        .btn {
-            padding: 1rem 2rem;
-            border: none;
-            border-radius: 12px;
-            font-family: 'Inter', sans-serif;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-        }
-        
-        .btn-primary {
-            background: var(--accent);
-            color: white;
-        }
-        
-        .btn-primary:hover:not(:disabled) {
-            background: var(--accent-light);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(0, 102, 255, 0.2);
-        }
-        
-        .btn-secondary {
-            background: var(--card-bg);
-            color: var(--text);
-            border: 1px solid var(--border);
-        }
-        
-        .btn-secondary:hover {
-            background: var(--secondary);
-        }
-        
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-        
-        .btn-success:hover:not(:disabled) {
-            background: #00DD99;
-            transform: translateY(-2px);
-        }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .button-group {
-            display: flex;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
+        .btn { padding: 1rem 2rem; border: none; border-radius: 12px; font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-light); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,102,255,0.2); }
+        .btn-secondary { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--secondary); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover:not(:disabled) { background: #00DD99; transform: translateY(-2px); }
+        .btn-warning { background: var(--warning); color: #000; }
+        .btn-warning:hover:not(:disabled) { background: #FFBB22; transform: translateY(-2px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .button-group { display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap; }
         
         /* Status Messages */
-        .status-message {
-            padding: 1rem;
-            background: var(--secondary);
-            border-left: 4px solid var(--accent);
-            border-radius: 8px;
-            margin: 1.5rem 0;
-        }
+        .status-message { padding: 1rem; background: var(--secondary); border-left: 4px solid var(--accent); border-radius: 8px; margin: 1.5rem 0; }
+        .status-success { border-left-color: var(--success); }
+        .status-error { border-left-color: var(--error); }
         
-        .status-success {
-            border-left-color: var(--success);
-        }
-        
-        .status-error {
-            border-left-color: var(--error);
-        }
-        
-        /* Result Section */
-        .result-section {
-            text-align: center;
-            padding: 2rem;
-            animation: fadeIn 0.5s ease;
-        }
-        
-        .result-video {
-            max-width: 400px;
-            width: 100%;
-            border-radius: 12px;
-            margin: 2rem auto;
-            display: block;
-        }
+        /* Result */
+        .result-section { text-align: center; padding: 2rem; animation: fadeIn 0.5s ease; }
+        .result-video { max-width: 400px; width: 100%; border-radius: 12px; margin: 2rem auto; display: block; }
         
         /* Footer */
-        .footer {
-            text-align: center;
-            padding: 2rem;
-            border-top: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
+        .footer { text-align: center; padding: 2rem; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 0.9rem; }
         
-        /* Responsive */
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-            
-            .steps-nav {
-                flex-direction: column;
-                align-items: center;
-                gap: 1rem;
-            }
-            
-            .step-connector {
-                display: none;
-            }
-            
-            .video-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            }
-            
-            .button-group {
-                flex-direction: column;
-            }
-        }
+        /* Char counter */
+        .char-counter { text-align: right; color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem; }
+        .char-counter.warning { color: var(--warning); }
+        .char-counter.error { color: var(--error); }
         
-        /* Character Counter */
-        .char-counter {
-            text-align: right;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            margin-top: 0.5rem;
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .glitch { animation: glitch 5s infinite; }
+        @keyframes glitch { 0%,100% { transform: translate(0); } 20% { transform: translate(-2px,2px); } 40% { transform: translate(-2px,-2px); } 60% { transform: translate(2px,2px); } 80% { transform: translate(2px,-2px); } }
+
+        /* ============================================================
+           STEP 2.5 — SUBTITLE PREVIEW + EDITOR
+           ============================================================ */
+
+        .preview-editor-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 2rem;
+            align-items: start;
         }
-        
-        .char-counter.warning {
-            color: var(--warning);
+
+        /* Phone Mockup */
+        .phone-mockup-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            position: sticky;
+            top: 90px;
         }
-        
-        .char-counter.error {
-            color: var(--error);
-        }
-        
-        /* Loading Animation */
-        .loading {
-            display: inline-block;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
-        /* Glitch Effect for Branding */
-        .glitch {
+
+        .phone-mockup {
+            width: 220px;
+            height: 390px;
+            background: #0a0a0a;
+            border-radius: 36px;
+            border: 3px solid #333;
             position: relative;
-            animation: glitch 5s infinite;
+            overflow: hidden;
+            box-shadow:
+                0 0 0 1px #000,
+                0 20px 60px rgba(0,0,0,0.8),
+                inset 0 0 0 1px #222;
+            transition: box-shadow 0.4s ease;
+            flex-shrink: 0;
         }
-        
-        @keyframes glitch {
-            0% { transform: translate(0); }
-            20% { transform: translate(-2px, 2px); }
-            40% { transform: translate(-2px, -2px); }
-            60% { transform: translate(2px, 2px); }
-            80% { transform: translate(2px, -2px); }
-            100% { transform: translate(0); }
+        .phone-mockup::before {
+            content: '';
+            position: absolute;
+            top: 10px; left: 50%; transform: translateX(-50%);
+            width: 60px; height: 8px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            z-index: 10;
+        }
+
+        /* Simulated Minecraft-ish background inside phone */
+        .phone-bg {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, #1a2a1a 0%, #0d1a0d 40%, #1a1500 100%);
+            overflow: hidden;
+        }
+        .phone-bg::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(255,255,255,0.025) 18px, rgba(255,255,255,0.025) 19px),
+                repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(255,255,255,0.025) 18px, rgba(255,255,255,0.025) 19px);
+        }
+        .phone-bg-label {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255,255,255,0.08);
+            font-size: 3rem;
+        }
+
+        /* Subtitle overlay inside phone */
+        .phone-subtitle-area {
+            position: absolute;
+            bottom: 0;
+            left: 0; right: 0;
+            padding: 0 12px 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            z-index: 5;
+        }
+        #phoneSubtitleDisplay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            text-align: center;
+        }
+        .sub-line {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .sub-word {
+            font-family: 'Arial Black', 'Arial', sans-serif;
+            font-size: 13px;
+            font-weight: 900;
+            color: #fff;
+            text-shadow:
+                -2px -2px 0 #000,
+                2px -2px 0 #000,
+                -2px 2px 0 #000,
+                2px 2px 0 #000,
+                0 3px 6px rgba(0,0,0,0.9);
+            letter-spacing: 0.3px;
+            line-height: 1.2;
+            transition: color 0.08s ease;
+        }
+        .sub-word-active {
+            color: #FFFF00;
+            text-shadow:
+                -2px -2px 0 #000,
+                2px -2px 0 #000,
+                -2px 2px 0 #000,
+                2px 2px 0 #000,
+                0 0 12px rgba(255,255,0,0.5),
+                0 3px 8px rgba(0,0,0,0.9);
+        }
+
+        /* Phone Controls */
+        .phone-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            width: 100%;
+        }
+        .preview-play-btn {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+        }
+        .preview-play-btn:hover { background: var(--accent-light); }
+        .preview-time { font-size: 0.8rem; color: var(--text-secondary); text-align: center; font-variant-numeric: tabular-nums; }
+        .sync-badge {
+            background: rgba(0,204,136,0.15);
+            border: 1px solid var(--success);
+            color: var(--success);
+            border-radius: 8px;
+            padding: 0.4rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* Word Editor Panel */
+        .editor-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .editor-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .editor-panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .editor-panel-title i { color: var(--accent); }
+
+        .editor-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            border-radius: 8px;
+        }
+
+        .editor-info {
+            background: rgba(0,102,255,0.08);
+            border: 1px solid rgba(0,102,255,0.2);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .editor-info strong { color: var(--text); }
+
+        /* Scrollable word list */
+        .editor-scroll {
+            max-height: 420px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--secondary);
+        }
+        .editor-scroll::-webkit-scrollbar { width: 6px; }
+        .editor-scroll::-webkit-scrollbar-track { background: transparent; }
+        .editor-scroll::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+        /* Editor table header */
+        .editor-header {
+            display: grid;
+            grid-template-columns: 120px 1fr 1fr 80px 40px;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: #0d0d0d;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .editor-col-word { }
+        .editor-col-label { text-align: center; }
+
+        /* Editor rows */
+        .editor-rows { }
+        .editor-row {
+            display: grid;
+            grid-template-columns: 120px 1fr 1fr 80px 40px;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .editor-row:last-child { border-bottom: none; }
+        .editor-row:hover { background: rgba(255,255,255,0.03); }
+        .editor-row.edited { background: rgba(255,170,0,0.06); }
+        .editor-row.edited .editor-word-text { color: var(--warning); }
+        .editor-row.auditioned { background: rgba(0,102,255,0.12) !important; transition: none; }
+
+        .editor-word-text {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .editor-time-inputs {
+            display: contents;
+        }
+
+        .ts-input {
+            width: 100%;
+            padding: 0.4rem 0.5rem;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.82rem;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+        .ts-input:focus { outline: none; border-color: var(--accent); background: #222; }
+
+        .ts-dur {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .btn-audition {
+            background: transparent;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.4rem;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 0.75rem;
+        }
+        .btn-audition:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,102,255,0.1); }
+
+        /* Apply edits banner */
+        .apply-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            background: rgba(255,170,0,0.08);
+            border: 1px solid rgba(255,170,0,0.3);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            flex-wrap: wrap;
+        }
+        .apply-banner-text { font-size: 0.9rem; color: var(--text); }
+        .apply-banner-text span { color: var(--warning); font-weight: 600; }
+
+        /* Responsive */
+        @media (max-width: 800px) {
+            .preview-editor-layout { grid-template-columns: 1fr; }
+            .phone-mockup-wrap { position: static; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+            .hero h1 { font-size: 2.5rem; }
+            .steps-nav { flex-direction: column; align-items: center; gap: 1rem; }
+            .step-connector { display: none; }
+            .video-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+            .button-group { flex-direction: column; }
+            .editor-header, .editor-row { grid-template-columns: 100px 1fr 1fr 60px 36px; }
+        }
+
+        @media (max-width: 560px) {
+            .editor-header, .editor-row { grid-template-columns: 90px 1fr 1fr 0 36px; }
+            .ts-dur, .editor-col-label:nth-child(4) { display: none; }
         }
     </style>
 </head>
@@ -490,27 +473,18 @@
         </div>
     </nav>
 
-    <!-- Hero Section -->
+    <!-- Hero -->
     <section class="hero">
         <h1 class="glitch">Transform Text into Viral Shorts</h1>
         <p>ArchNemix AI seamlessly converts your scripts into professional YouTube Shorts with perfect sync, cinematic backgrounds, and broadcast-quality subtitles.</p>
-        <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fas fa-robot" style="color: var(--accent);"></i>
-                <span>AI Voice Generation</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fas fa-film" style="color: var(--accent);"></i>
-                <span>Cinematic Backgrounds</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fas fa-closed-captioning" style="color: var(--accent);"></i>
-                <span>Auto-Subtitles</span>
-            </div>
+        <div style="display: flex; gap: 1.5rem; justify-content: center; margin-top: 2rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;"><i class="fas fa-robot" style="color: var(--accent);"></i><span>AI Voice Generation</span></div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;"><i class="fas fa-film" style="color: var(--accent);"></i><span>Cinematic Backgrounds</span></div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;"><i class="fas fa-closed-captioning" style="color: var(--accent);"></i><span>Auto-Subtitles</span></div>
         </div>
     </section>
 
-    <!-- Steps Navigation -->
+    <!-- Steps Navigation — 5 steps now -->
     <div class="steps-nav">
         <div class="step-indicator active" data-step="1">
             <div class="step-number">1</div>
@@ -520,6 +494,11 @@
         <div class="step-indicator" data-step="2">
             <div class="step-number">2</div>
             <div class="step-text">Audio</div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-indicator" data-step="2.5">
+            <div class="step-number"><i class="fas fa-closed-captioning" style="font-size:0.7rem;"></i></div>
+            <div class="step-text">Subtitles</div>
         </div>
         <div class="step-connector"></div>
         <div class="step-indicator" data-step="3">
@@ -535,39 +514,38 @@
 
     <!-- Main Container -->
     <div class="container">
+
         <!-- Step 1: Script -->
-        <div class="step-content active" id="step1">
+        <div class="step-content active" data-step="1" id="step1">
             <div class="step-header">
                 <i class="fas fa-edit"></i>
                 <h2>Craft Your Narrative</h2>
             </div>
             <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
-                Write the story you want to tell. Our AI will transform it into a compelling voiceover. Perfect for Reddit stories, facts, motivational content, and more.
+                Write the story you want to tell. Our AI will transform it into a compelling voiceover.
             </p>
             <div class="form-group">
                 <label for="scriptInput">Your Script (Up to 3500 characters for ~3 minute shorts)</label>
-                <textarea id="scriptInput" placeholder="Enter your script here...
-
-Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content creation. With our AI-powered platform, you can transform simple text into viral YouTube Shorts in minutes. No editing skills required. Just pure creativity amplified by technology. Let's create something amazing together."></textarea>
+                <textarea id="scriptInput" placeholder="Enter your script here...&#10;&#10;Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content creation with AI-powered YouTube Shorts. No editing skills required — just pure creativity amplified by technology."></textarea>
                 <div class="char-counter" id="charCounter">
                     <span id="charCount">0</span> / 3500 characters
                 </div>
             </div>
             <div class="button-group">
-                <button id="nextStep1" class="btn btn-primary">
+                <button id="nextStep1" class="btn btn-primary" disabled>
                     Continue to Audio <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
         </div>
 
         <!-- Step 2: Audio -->
-        <div class="step-content" id="step2">
+        <div class="step-content" data-step="2" id="step2">
             <div class="step-header">
                 <i class="fas fa-volume-up"></i>
-                <h2>Voice & Audio Settings</h2>
+                <h2>Voice &amp; Audio Settings</h2>
             </div>
             <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
-                Customize the voice that will bring your script to life.
+                Customize the voice that will bring your script to life. Powered by Kokoro-82M ONNX with ~12.5ms timestamp precision.
             </p>
             <div class="form-group">
                 <label for="voiceSelect">Select Voice</label>
@@ -576,11 +554,11 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
                 </select>
             </div>
             <div class="form-group">
-                <label>Speech Rate: <span id="rateValue">1.0</span></label>
+                <label>Speech Rate: <span id="rateValue">1.0</span>×</label>
                 <input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1.0">
             </div>
             <div class="status-message" id="audioStatus">
-                <i class="fas fa-info-circle"></i> Click "Generate Audio" to preview your script
+                <i class="fas fa-info-circle"></i> Click "Generate Audio" to generate with exact timestamps
             </div>
             <audio id="audioPreview" controls style="width: 100%; margin: 1rem 0;"></audio>
             <div class="button-group">
@@ -588,16 +566,100 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
                     <i class="fas fa-arrow-left"></i> Back
                 </button>
                 <button id="generateAudioBtn" class="btn btn-primary">
-                    <i class="fas fa-play"></i> Generate Audio Preview
+                    <i class="fas fa-play"></i> Generate Audio
                 </button>
                 <button id="nextStep2" class="btn btn-primary" disabled>
+                    Preview Subtitles <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 2.5: Subtitle Preview + Editor -->
+        <div class="step-content" data-step="2.5" id="step2_5">
+            <div class="step-header">
+                <i class="fas fa-closed-captioning"></i>
+                <h2>Preview &amp; Fine-tune Subtitles</h2>
+            </div>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Watch your subtitles sync live in the phone preview. If any word feels off, adjust its start/end time directly in the editor, then hit <strong style="color:#fff">Apply Changes</strong> before continuing.
+            </p>
+
+            <div class="preview-editor-layout">
+
+                <!-- LEFT: Phone mockup -->
+                <div class="phone-mockup-wrap">
+                    <div class="phone-mockup" id="phoneMockup">
+                        <!-- Simulated background -->
+                        <div class="phone-bg">
+                            <i class="fas fa-gamepad phone-bg-label"></i>
+                        </div>
+                        <!-- Subtitle overlay -->
+                        <div class="phone-subtitle-area">
+                            <div id="phoneSubtitleDisplay"></div>
+                        </div>
+                    </div>
+
+                    <!-- Controls below phone -->
+                    <div class="phone-controls" style="width:220px;">
+                        <button class="preview-play-btn" id="previewPlayBtn" onclick="togglePreviewPlay()">
+                            <i class="fas fa-play"></i> Play Preview
+                        </button>
+                        <div class="preview-time" id="previewTimeDisplay">0.00s / 0.00s</div>
+                        <div class="sync-badge">
+                            <i class="fas fa-bolt"></i> ~12.5ms ONNX precision
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Word timestamp editor -->
+                <div class="editor-panel">
+                    <div class="editor-panel-header">
+                        <div class="editor-panel-title">
+                            <i class="fas fa-sliders-h"></i>
+                            Word Timestamp Editor
+                        </div>
+                        <div class="editor-actions">
+                            <button id="resetTimestamps" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-undo"></i> Reset
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="editor-info">
+                        <strong>How to use:</strong> Click <i class="fas fa-volume-up" style="color:var(--accent)"></i> to audition any word in isolation. Edit the start/end times (in seconds) if it sounds off. Yellow = active word in preview. Click <strong>Apply Changes</strong> to bake your edits into the subtitle file.
+                    </div>
+
+                    <!-- Scrollable word table -->
+                    <div class="editor-scroll">
+                        <div id="wordTimestampEditor">
+                            <p style="color:var(--text-secondary); text-align:center; padding:2rem;">Generate audio first to see timestamps here.</p>
+                        </div>
+                    </div>
+
+                    <!-- Apply banner -->
+                    <div class="apply-banner">
+                        <div class="apply-banner-text">
+                            Edited timestamps? <span>Apply them</span> to update the subtitle file before moving on.
+                        </div>
+                        <button id="applyTimestampEdits" class="btn btn-warning btn-sm">
+                            <i class="fas fa-check"></i> Apply Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group" style="margin-top:2rem;">
+                <button id="prevStep2_5" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Audio
+                </button>
+                <button id="nextStep2_5" class="btn btn-primary">
                     Continue to Visuals <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
         </div>
 
         <!-- Step 3: Visuals -->
-        <div class="step-content" id="step3">
+        <div class="step-content" data-step="3" id="step3">
             <div class="step-header">
                 <i class="fas fa-film"></i>
                 <h2>Select Background Visuals</h2>
@@ -609,29 +671,29 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
                 <!-- Videos loaded dynamically -->
             </div>
             <div class="status-message" id="subtitlePreview">
-                <i class="fas fa-closed-captioning"></i> Subtitles will be generated automatically with perfect timing (centered in middle of screen)
+                <i class="fas fa-closed-captioning"></i> Your custom-synced subtitles are ready — centered in the middle of the screen.
             </div>
             <div class="button-group">
                 <button id="prevStep3" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Back
                 </button>
                 <button id="nextStep3" class="btn btn-primary" disabled>
-                    Generate Short <i class="fas fa-magic"></i>
+                    Review &amp; Generate <i class="fas fa-magic"></i>
                 </button>
             </div>
         </div>
 
         <!-- Step 4: Generate -->
-        <div class="step-content" id="step4">
+        <div class="step-content" data-step="4" id="step4">
             <div class="step-header">
                 <i class="fas fa-cogs"></i>
                 <h2>Generate Your Short</h2>
             </div>
             <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
-                Review your settings and create your video. Processing typically takes 30-180 seconds depending on length.
+                Review your settings and create your video. Processing typically takes 30–180 seconds depending on length.
             </p>
-            
-            <!-- Settings Summary -->
+
+            <!-- Settings summary -->
             <div style="background: var(--secondary); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                     <div>
@@ -652,7 +714,7 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
                     </div>
                 </div>
             </div>
-            
+
             <!-- Progress -->
             <div class="progress-container">
                 <div class="progress-header">
@@ -663,11 +725,11 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
             </div>
-            
+
             <div class="status-message" id="statusMessage">
                 <i class="fas fa-info-circle"></i> Click "Generate Now" to start the creation process
             </div>
-            
+
             <div class="button-group">
                 <button id="prevStep4" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Back
@@ -676,7 +738,7 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
                     <i class="fas fa-bolt"></i> Generate Now
                 </button>
             </div>
-            
+
             <!-- Result Section -->
             <div class="result-section" id="resultSection" style="display: none;">
                 <h3 style="color: var(--success); margin-bottom: 1rem;">
@@ -696,7 +758,8 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
                 </div>
             </div>
         </div>
-    </div>
+
+    </div><!-- /container -->
 
     <!-- Footer -->
     <footer class="footer">
@@ -712,7 +775,7 @@ Example: Welcome to the world of ArchNemix. Today, we're revolutionizing content
         </div>
         <div>
             <p style="color: var(--text-secondary); font-size: 0.8rem;">
-                Rate limited to 3 videos per hour • Videos are automatically deleted after 1 hour • Max 3500 characters / 3 minutes
+                Rate limited to 3 videos per hour • Videos auto-deleted after 1 hour • Max 3500 characters / 3 minutes
             </p>
         </div>
     </footer>
