@@ -21,8 +21,8 @@ const state = {
     jobPollInterval: null,
     isProcessing: false,
     availableTTSVoices: [],
-    wordTimestamps: [],  // Raw timestamps from Kokoro-82M
-    alignmentJobId: "",  // For polling alignment service
+    wordTimestamps: [],
+    alignmentJobId: "",
     alignmentStatus: "pending"
 };
 
@@ -30,27 +30,17 @@ const state = {
 class Toast {
     static show(message, type = 'info', duration = 3000) {
         const toast = document.createElement('div');
-        const icon = {
-            success: '✓',
-            error: '✗',
-            warning: '⚠',
-            info: 'ℹ'
-        }[type] || 'ℹ';
-        
+        const icon = { success: '✓', error: '✗', warning: '⚠', info: 'ℹ' }[type] || 'ℹ';
+
         toast.innerHTML = `
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 1.2em;">${icon}</span>
                 <span>${message}</span>
             </div>
         `;
-        
-        const colors = {
-            success: '#00CC88',
-            error: '#FF5555',
-            warning: '#FFAA00',
-            info: '#0066FF'
-        };
-        
+
+        const colors = { success: '#00CC88', error: '#FF5555', warning: '#FFAA00', info: '#0066FF' };
+
         Object.assign(toast.style, {
             position: 'fixed',
             top: '100px',
@@ -65,37 +55,25 @@ class Toast {
             maxWidth: '300px',
             animation: 'toastSlideIn 0.3s ease'
         });
-        
+
         document.body.appendChild(toast);
-        
         setTimeout(() => {
             toast.style.animation = 'toastSlideOut 0.3s ease';
-            setTimeout(() => {
-                if (toast.parentNode) document.body.removeChild(toast);
-            }, 300);
+            setTimeout(() => { if (toast.parentNode) document.body.removeChild(toast); }, 300);
         }, duration);
     }
 }
 
-// Add toast animation styles
 const toastStyles = document.createElement('style');
 toastStyles.textContent = `
-    @keyframes toastSlideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes toastSlideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-    }
+    @keyframes toastSlideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes toastSlideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
 `;
 document.head.appendChild(toastStyles);
 
 // ========== MAIN INITIALIZATION ==========
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('✨ ArchNemix Shorts Generator with ArchxAUDSBT Alignment');
-    console.log('🎯 TTS API:', TTS_API);
-    console.log('🔧 Aligner API:', ALIGNER_API);
+    console.log('✨ ArchNemix Shorts Generator with ArchxAUDSBT Alignment v2');
     initializeApplication();
 });
 
@@ -113,56 +91,37 @@ async function initializeApplication() {
 }
 
 function setupEventListeners() {
-    // Script input
     const scriptInput = document.getElementById('scriptInput');
-    if (scriptInput) {
-        scriptInput.addEventListener('input', handleScriptInput);
-    }
-    
-    // Rate slider
+    if (scriptInput) scriptInput.addEventListener('input', handleScriptInput);
+
     const rateSlider = document.getElementById('rateSlider');
     if (rateSlider) {
         rateSlider.addEventListener('input', (e) => {
             document.getElementById('rateValue').textContent = e.target.value;
         });
     }
-    
-    // Navigation buttons
-    const nextStep1 = document.getElementById('nextStep1');
-    if (nextStep1) nextStep1.addEventListener('click', () => goToStep(2));
-    
-    const prevStep2 = document.getElementById('prevStep2');
-    if (prevStep2) prevStep2.addEventListener('click', () => goToStep(1));
-    
-    const nextStep2 = document.getElementById('nextStep2');
-    if (nextStep2) nextStep2.addEventListener('click', () => goToStep(3));
-    
-    const prevStep3 = document.getElementById('prevStep3');
-    if (prevStep3) prevStep3.addEventListener('click', () => goToStep(2));
-    
-    const nextStep3 = document.getElementById('nextStep3');
-    if (nextStep3) nextStep3.addEventListener('click', () => goToStep(4));
-    
-    const prevStep4 = document.getElementById('prevStep4');
-    if (prevStep4) prevStep4.addEventListener('click', () => goToStep(3));
-    
-    // Action buttons
-    const generateAudioBtn = document.getElementById('generateAudioBtn');
-    if (generateAudioBtn) generateAudioBtn.addEventListener('click', generateAudio);
-    
-    const generateVideoBtn = document.getElementById('generateVideoBtn');
-    if (generateVideoBtn) generateVideoBtn.addEventListener('click', generateVideo);
-    
-    const newVideoBtn = document.getElementById('newVideoBtn');
-    if (newVideoBtn) newVideoBtn.addEventListener('click', resetApplication);
-    
-    // Audio preview
+
+    const navMap = [
+        ['nextStep1', () => goToStep(2)],
+        ['prevStep2', () => goToStep(1)],
+        ['nextStep2', () => goToStep(3)],
+        ['prevStep3', () => goToStep(2)],
+        ['nextStep3', () => goToStep(4)],
+        ['prevStep4', () => goToStep(3)],
+        ['generateAudioBtn', generateAudio],
+        ['generateVideoBtn', generateVideo],
+        ['newVideoBtn', resetApplication],
+    ];
+    navMap.forEach(([id, fn]) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', fn);
+    });
+
     const audioPreview = document.getElementById('audioPreview');
     if (audioPreview) {
         audioPreview.addEventListener('loadedmetadata', () => {
             state.audioDuration = audioPreview.duration || state.audioDuration;
             updateGenerationInfo();
-            console.log(`Audio loaded: ${state.audioDuration}s`);
         });
     }
 }
@@ -173,16 +132,16 @@ function handleScriptInput(e) {
     const charCounter = document.getElementById('charCounter');
     const charCount = document.getElementById('charCount');
     const nextBtn = document.getElementById('nextStep1');
-    
+
     if (charCount) charCount.textContent = count;
     if (charCounter) charCounter.className = 'char-counter';
-    
+
     if (count > 3000 && count <= 3300) {
         if (charCounter) charCounter.classList.add('warning');
     } else if (count > 3300) {
         if (charCounter) charCounter.classList.add('error');
     }
-    
+
     if (nextBtn) nextBtn.disabled = count < 10;
 }
 
@@ -190,302 +149,227 @@ function goToStep(step) {
     state.currentStep = step;
     updateStepIndicators();
     updateStepContent();
-    
-    if (step === 4) {
-        updateGenerationInfo();
-    }
+    if (step === 4) updateGenerationInfo();
 }
 
 function updateStepIndicators() {
-    document.querySelectorAll('.step-indicator').forEach((el, index) => {
-        if (index + 1 === state.currentStep) {
-            el.classList.add('active');
-        } else {
-            el.classList.remove('active');
-        }
+    document.querySelectorAll('.step-indicator').forEach((el, idx) => {
+        el.classList.toggle('active', idx + 1 === state.currentStep);
     });
 }
 
 function updateStepContent() {
-    document.querySelectorAll('.step-content').forEach((el, index) => {
-        if (index + 1 === state.currentStep) {
-            el.classList.add('active');
-        } else {
-            el.classList.remove('active');
-        }
+    document.querySelectorAll('.step-content').forEach((el, idx) => {
+        el.classList.toggle('active', idx + 1 === state.currentStep);
     });
 }
 
 // ========== VOICE INITIALIZATION ==========
 async function initializeVoices() {
-    try {
-        console.log('Loading voices from Kokoro-82M API...');
-        
-        const response = await fetch(`${TTS_API}/voices`, {
-            method: 'GET',
-            headers: {
-                'Origin': window.location.origin
-            },
-            mode: 'cors'
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to load voices');
-        }
-        
-        const data = await response.json();
-        state.availableTTSVoices = data.voices || [];
-        
-        const select = document.getElementById('voiceSelect');
-        if (!select) return;
-        
+    const fallbackVoices = [
+        { id: 'male_high',   name: 'Michael (US Male) - High Quality', quality: 'high' },
+        { id: 'male_medium', name: 'Adam (US Male) - Clear',           quality: 'medium' },
+        { id: 'female_high', name: 'Sarah (US Female) - High Quality', quality: 'high' },
+        { id: 'female_medium', name: 'Sky (US Female) - Natural',      quality: 'medium' },
+    ];
+
+    const select = document.getElementById('voiceSelect');
+    if (!select) return;
+
+    const applyVoices = (voices) => {
+        state.availableTTSVoices = voices;
         select.innerHTML = '';
-        
-        if (state.availableTTSVoices.length > 0) {
-            state.availableTTSVoices.forEach(voice => {
-                const option = document.createElement('option');
-                option.value = voice.id;
-                option.textContent = `${voice.name} [${voice.quality.toUpperCase()}]`;
-                select.appendChild(option);
-            });
-            
-            // Default to male_high if available
-            if (state.availableTTSVoices.some(v => v.id === 'male_high')) {
-                select.value = 'male_high';
-            }
-            
-            console.log(`✅ Loaded ${state.availableTTSVoices.length} Kokoro-82M voices`);
-            Toast.show(`${state.availableTTSVoices.length} voices loaded`, 'success');
+        voices.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.id;
+            opt.textContent = `${v.name} [${v.quality.toUpperCase()}]`;
+            select.appendChild(opt);
+        });
+        if (voices.some(v => v.id === 'male_high')) select.value = 'male_high';
+    };
+
+    try {
+        const resp = await fetch(`${TTS_API}/voices`, { mode: 'cors' });
+        if (!resp.ok) throw new Error(`Status ${resp.status}`);
+        const data = await resp.json();
+        const voices = data.voices || [];
+        if (voices.length > 0) {
+            applyVoices(voices);
+            Toast.show(`${voices.length} voices loaded`, 'success');
         } else {
-            // Fallback voices
-            select.innerHTML = `
-                <option value="male_high">Michael (US Male) - High Quality</option>
-                <option value="male_medium">Adam (US Male) - Clear</option>
-                <option value="female_high">Sarah (US Female) - High Quality</option>
-                <option value="female_medium">Sky (US Female) - Natural</option>
-            `;
-            select.value = 'male_high';
-            
-            state.availableTTSVoices = [
-                { id: 'male_high', name: 'Michael (US Male) - High Quality', quality: 'high' },
-                { id: 'male_medium', name: 'Adam (US Male) - Clear', quality: 'medium' },
-                { id: 'female_high', name: 'Sarah (US Female) - High Quality', quality: 'high' },
-                { id: 'female_medium', name: 'Sky (US Female) - Natural', quality: 'medium' }
-            ];
-            
-            Toast.show('Using default voices', 'warning');
+            throw new Error('No voices returned');
         }
-        
-    } catch (error) {
-        console.error('Failed to load Kokoro-82M voices:', error);
-        Toast.show('Voice loading failed, using defaults', 'warning');
+    } catch (err) {
+        console.warn('Voice load failed, using defaults:', err);
+        applyVoices(fallbackVoices);
+        Toast.show('Using default voices', 'warning');
     }
 }
 
 // ========== VIDEO LOADING ==========
 async function loadVideos() {
     try {
-        const response = await fetch(`${API_URL}/videos/minecraft`);
-        
-        if (response.ok) {
-            const data = await response.json();
+        const resp = await fetch(`${API_URL}/videos/minecraft`);
+        if (resp.ok) {
+            const data = await resp.json();
             renderVideoGrid(data.videos);
             Toast.show(`Loaded ${data.videos.length} videos`, 'success');
             return;
         }
-        
-        console.log('Using fallback video list');
-        renderVideoGrid(['mc1', 'mc2', 'mc3', 'mc4', 'mc5', 'mc6']);
-        
-    } catch (error) {
-        console.error('Video loading failed:', error);
-        renderVideoGrid(['mc1', 'mc2', 'mc3', 'mc4', 'mc5', 'mc6']);
-        Toast.show('Using fallback video library', 'warning');
+    } catch (e) {
+        console.warn('Video API unavailable, using fallback');
     }
+    renderVideoGrid(['mc1', 'mc2', 'mc3', 'mc4', 'mc5', 'mc6']);
+    Toast.show('Using fallback video library', 'warning');
 }
 
 function renderVideoGrid(videoList) {
     const grid = document.getElementById('videoGrid');
     if (!grid) return;
-    
     grid.innerHTML = '';
-    
+
     const colors = ['#0066FF', '#00CC88', '#FFAA00', '#FF5555', '#AA66FF', '#00CCCC'];
-    
+
     videoList.forEach((videoName, index) => {
         const item = document.createElement('div');
         item.className = 'video-card';
         item.dataset.video = videoName;
-        
+
         const displayName = videoName.replace('.mp4', '').toUpperCase();
         const color = colors[index % colors.length];
-        
+
         item.innerHTML = `
             <div class="video-thumb" style="background: linear-gradient(135deg, ${color}22, ${color}44);">
                 <i class="fas fa-gamepad" style="color: ${color}; font-size: 2.5rem;"></i>
             </div>
             <div style="font-weight: 600; margin-top: 0.5rem;">${displayName}</div>
-            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                Minecraft Adventure
-            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Minecraft Adventure</div>
         `;
-        
-        item.addEventListener('click', function() {
-            document.querySelectorAll('.video-card').forEach(el => {
-                el.classList.remove('selected');
-            });
-            
+
+        item.addEventListener('click', function () {
+            document.querySelectorAll('.video-card').forEach(el => el.classList.remove('selected'));
             this.classList.add('selected');
             state.selectedVideo = videoName.replace('.mp4', '');
-            
             const nextBtn = document.getElementById('nextStep3');
             if (nextBtn) nextBtn.disabled = false;
-            
             updateGenerationInfo();
-            
             this.style.transform = 'scale(0.98)';
-            setTimeout(() => {
-                this.style.transform = 'scale(1)';
-            }, 150);
+            setTimeout(() => { this.style.transform = 'scale(1)'; }, 150);
         });
-        
+
         grid.appendChild(item);
     });
-    
-    const firstVideo = grid.querySelector('.video-card');
-    if (firstVideo) {
-        setTimeout(() => firstVideo.click(), 100);
-    }
+
+    const first = grid.querySelector('.video-card');
+    if (first) setTimeout(() => first.click(), 100);
 }
 
-// ========== FORCED ALIGNMENT SERVICE (ArchxAUDSBT) ==========
+// ========== FORCED ALIGNMENT (ArchxAUDSBT) ==========
+
+/**
+ * Call the ArchxAUDSBT alignment service.
+ * Returns ASS subtitle string on success, throws on failure.
+ *
+ * RESPONSE CONTRACT (v2.0.0):
+ *   Sync  → { status:"completed", ass_subtitles: "<string>", timestamps:[...] }
+ *   Async → { status:"processing", job_id:"..." }
+ */
 async function alignSubtitlesWithService(audioBase64, text, timestamps) {
-    /**
-     * Send audio and timestamps to ArchxAUDSBT alignment service
-     * Returns PERFECTLY aligned ASS subtitles
-     */
-    
     const statusMessage = document.getElementById('audioStatus');
-    
-    try {
-        if (statusMessage) {
-            statusMessage.innerHTML = `<i class="fas fa-robot"></i> Sending to ArchxAUDSBT alignment service...`;
-        }
-        
-        console.log('🔧 Sending to alignment service:', ALIGNER_API);
-        console.log('Audio size:', audioBase64.length, 'chars');
-        console.log('Text length:', text.length);
-        console.log('Initial timestamps:', timestamps.length, 'words');
-        
-        // Call alignment service
-        const response = await fetch(`${ALIGNER_API}/align`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Origin': window.location.origin
-            },
-            mode: 'cors',
-            body: JSON.stringify({
-                audio: audioBase64,
-                text: text,
-                initial_timestamps: timestamps,
-                output_format: 'ass',
-                language: 'en',
-                sample_rate: 24000
-            })
-        });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Alignment API error:', response.status, errorText);
-            throw new Error(`Alignment failed: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        console.log('✅ Alignment service response:', data);
-        
-        // Handle different response formats
-        if (data.status === 'processing' && data.job_id) {
-            // Async job - need to poll
-            state.alignmentJobId = data.job_id;
-            if (statusMessage) {
-                statusMessage.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Alignment in progress...`;
-            }
-            return await pollAlignmentResult(data.job_id);
-            
-        } else if (data.ass_subtitles || data.subtitles || data.result) {
-            // Sync response with subtitles
-            console.log('✅ Alignment completed synchronously!');
-            return data.ass_subtitles || data.subtitles || data.result;
-            
-        } else if (data.error) {
-            throw new Error(data.error);
-            
-        } else {
-            console.warn('Unexpected alignment response:', data);
-            throw new Error('Unexpected alignment service response');
-        }
-        
-    } catch (error) {
-        console.error('❌ Alignment failed:', error);
-        throw error;
+
+    const updateStatus = (html) => {
+        if (statusMessage) statusMessage.innerHTML = html;
+    };
+
+    updateStatus(`<i class="fas fa-robot"></i> Sending to ArchxAUDSBT alignment service...`);
+    console.log('🔧 Aligner:', ALIGNER_API);
+
+    const resp = await fetch(`${ALIGNER_API}/align`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
+        body: JSON.stringify({
+            audio: audioBase64,
+            text: text,
+            initial_timestamps: timestamps,
+            output_format: 'ass',
+            language: 'en',
+            sample_rate: 24000,
+        }),
+    });
+
+    if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Aligner HTTP ${resp.status}: ${errText}`);
     }
+
+    const data = await resp.json();
+    console.log('Aligner response:', data);
+
+    // Synchronous completion — ass_subtitles is always a string
+    if (data.status === 'completed' && typeof data.ass_subtitles === 'string') {
+        console.log('✅ Alignment synchronous complete');
+        return data.ass_subtitles;
+    }
+
+    // Async job — poll for result
+    if (data.status === 'processing' && data.job_id) {
+        state.alignmentJobId = data.job_id;
+        updateStatus(`<i class="fas fa-spinner fa-spin"></i> Alignment in progress...`);
+        return await pollAlignmentResult(data.job_id, updateStatus);
+    }
+
+    // Unexpected shape
+    console.warn('Unexpected aligner response:', data);
+    throw new Error('Unexpected alignment service response format');
 }
 
-async function pollAlignmentResult(jobId) {
-    /** Poll ArchxAUDSBT service for result */
-    
+async function pollAlignmentResult(jobId, updateStatus) {
     return new Promise((resolve, reject) => {
-        const maxAttempts = 60;
         let attempts = 0;
-        
+        const MAX = 90;   // 90 × 2 s = 3 min max
+
         const interval = setInterval(async () => {
+            attempts++;
+
             try {
-                attempts++;
-                
-                const response = await fetch(`${ALIGNER_API}/job/${jobId}`, {
-                    headers: {
-                        'Origin': window.location.origin
-                    },
-                    mode: 'cors'
-                });
-                
-                if (!response.ok) {
-                    if (response.status === 404 && attempts < maxAttempts) {
-                        // Job not found yet, continue polling
-                        return;
-                    }
+                const resp = await fetch(`${ALIGNER_API}/job/${jobId}`, { mode: 'cors' });
+
+                // 404 early in job lifecycle — keep waiting
+                if (resp.status === 404 && attempts < 5) return;
+
+                if (!resp.ok) {
                     clearInterval(interval);
-                    reject(new Error(`Alignment status check failed: ${response.status}`));
+                    reject(new Error(`Job status HTTP ${resp.status}`));
                     return;
                 }
-                
-                const data = await response.json();
-                
-                if (data.status === 'completed' || data.status === 'success') {
+
+                const data = await resp.json();
+                const pct = data.progress || Math.round((attempts / MAX) * 100);
+                updateStatus(`<i class="fas fa-spinner fa-spin"></i> Aligning subtitles… ${pct}%`);
+
+                if (data.status === 'completed') {
                     clearInterval(interval);
-                    console.log('✅ Alignment completed!');
-                    resolve(data.ass_subtitles || data.subtitles || data.result);
-                    
-                } else if (data.status === 'failed' || data.status === 'error') {
+                    // ass_subtitles is the authoritative field
+                    const ass = data.ass_subtitles || data.result;
+                    if (typeof ass === 'string' && ass.length > 0) {
+                        resolve(ass);
+                    } else {
+                        reject(new Error('Job completed but no ASS subtitles in response'));
+                    }
+                } else if (data.status === 'failed') {
                     clearInterval(interval);
-                    reject(new Error(data.error || 'Alignment failed'));
-                    
-                } else if (attempts >= maxAttempts) {
+                    reject(new Error(data.error || 'Alignment job failed'));
+                } else if (attempts >= MAX) {
                     clearInterval(interval);
-                    reject(new Error('Alignment timeout'));
+                    reject(new Error('Alignment timeout (3 min)'));
                 }
-                
-                // Update progress
-                const progress = data.progress || Math.round(attempts/maxAttempts*100);
-                const statusMessage = document.getElementById('audioStatus');
-                if (statusMessage) {
-                    statusMessage.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Aligning subtitles... ${progress}%`;
+            } catch (err) {
+                console.warn(`Poll attempt ${attempts} error (continuing):`, err);
+                if (attempts >= MAX) {
+                    clearInterval(interval);
+                    reject(new Error('Alignment polling failed'));
                 }
-                
-            } catch (error) {
-                console.warn('Polling error (continuing):', error);
             }
         }, 2000);
     });
@@ -497,190 +381,140 @@ async function generateAudio() {
         Toast.show('Please enter a script first', 'error');
         return;
     }
-    
+
     const voiceId = document.getElementById('voiceSelect')?.value;
-    const rate = parseFloat(document.getElementById('rateSlider')?.value || '1.0');
-    
+    const rate    = parseFloat(document.getElementById('rateSlider')?.value || '1.0');
+
     if (!voiceId) {
         Toast.show('Please select a voice', 'error');
         return;
     }
-    
-    const audioStatus = document.getElementById('audioStatus');
-    const audioBtn = document.getElementById('generateAudioBtn');
+
+    const audioStatus  = document.getElementById('audioStatus');
+    const audioBtn     = document.getElementById('generateAudioBtn');
     const audioPreview = document.getElementById('audioPreview');
-    const nextBtn = document.getElementById('nextStep2');
-    const prevBtn = document.getElementById('prevStep2');
-    
-    if (audioStatus) {
-        audioStatus.innerHTML = `<i class="fas fa-robot"></i> Step 1: Generating audio with Kokoro-82M...`;
-        audioStatus.className = 'status-message';
-    }
-    
-    if (audioBtn) {
-        audioBtn.disabled = true;
-        audioBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    }
-    
-    if (audioPreview) audioPreview.src = '';
-    
-    if (nextBtn) nextBtn.disabled = true;
-    if (prevBtn) prevBtn.disabled = true;
-    
+    const nextBtn      = document.getElementById('nextStep2');
+    const prevBtn      = document.getElementById('prevStep2');
+
+    const setStatus = (html, cls = 'status-message') => {
+        if (audioStatus) { audioStatus.innerHTML = html; audioStatus.className = cls; }
+    };
+
+    setStatus(`<i class="fas fa-robot"></i> Step 1: Generating audio with Kokoro-82M...`);
+    if (audioBtn)     { audioBtn.disabled = true; audioBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...'; }
+    if (audioPreview)   audioPreview.src = '';
+    if (nextBtn)        nextBtn.disabled = true;
+    if (prevBtn)        prevBtn.disabled = true;
+
     try {
-        console.log('🎙️ Step 1: Calling Kokoro-82M API...');
-        
-        // Step 1: Generate audio with Kokoro-82M
+        // ── Step 1: Kokoro-82M → audio + rough word timestamps ──
         await generateKokoroAudio(state.script, voiceId, rate);
-        
-        // Step 2: Send to ArchxAUDSBT forced alignment service
-        if (audioStatus) {
-            audioStatus.innerHTML = `<i class="fas fa-robot"></i> Step 2: Sending to ArchxAUDSBT alignment service...`;
-        }
-        
+        console.log(`✅ Kokoro done: ${state.audioDuration.toFixed(1)}s, ${state.wordTimestamps.length} words`);
+
+        // ── Step 2: ArchxAUDSBT → perfectly aligned ASS ──
+        setStatus(`<i class="fas fa-robot"></i> Step 2: Sending to ArchxAUDSBT alignment service...`);
+
+        let alignedASS = null;
+        let alignedOK  = false;
+
         try {
-            const alignedASS = await alignSubtitlesWithService(
+            alignedASS = await alignSubtitlesWithService(
                 state.audioBase64,
                 state.script,
-                state.wordTimestamps
+                state.wordTimestamps,
             );
-            
-            // Step 3: Use the perfectly aligned subtitles
-            state.subtitlesASS = alignedASS;
-            
-            console.log('✅ Forced alignment completed!');
-            
-            if (audioStatus) {
-                audioStatus.innerHTML = `
-                    <i class="fas fa-check-circle" style="color: var(--success);"></i> 
-                    Audio + Alignment Complete! (${state.audioDuration.toFixed(1)}s)
-                `;
-                audioStatus.className = 'status-message status-success';
-            }
-            
-            if (nextBtn) nextBtn.disabled = false;
-            if (prevBtn) prevBtn.disabled = false;
-            
+            alignedOK = true;
+            console.log('✅ ArchxAUDSBT alignment complete');
+        } catch (alignErr) {
+            console.warn('⚠️ Alignment failed, falling back to Kokoro timestamps:', alignErr.message);
+        }
+
+        state.subtitlesASS = alignedOK
+            ? alignedASS
+            : generateFallbackSubtitles(state.wordTimestamps);
+
+        // ── Step 3: Update UI ──
+        if (alignedOK) {
+            setStatus(
+                `<i class="fas fa-check-circle" style="color:var(--success)"></i>
+                 Audio + ArchxAUDSBT alignment complete! (${state.audioDuration.toFixed(1)}s)`,
+                'status-message status-success',
+            );
+
             const preview = document.getElementById('subtitlePreview');
             if (preview) {
                 preview.innerHTML = `
-                    <i class="fas fa-closed-captioning" style="color: var(--success);"></i>
-                    <strong>Perfect Sync:</strong> ${state.wordTimestamps.length} words • Force-aligned by ArchxAUDSBT
+                    <i class="fas fa-closed-captioning" style="color:var(--success)"></i>
+                    <strong>Perfect Sync:</strong> ${state.wordTimestamps.length} words
+                    — force-aligned by ArchxAUDSBT
                 `;
                 preview.className = 'status-message status-success';
             }
-            
-            Toast.show(`ArchxAUDSBT alignment complete - perfect sync!`, 'success');
-            
-        } catch (alignError) {
-            console.error('❌ Alignment failed, using Kokoro timestamps as fallback:', alignError);
-            
-            // Fallback: Generate ASS from Kokoro timestamps
-            state.subtitlesASS = generateFallbackSubtitles(state.wordTimestamps);
-            
-            if (audioStatus) {
-                audioStatus.innerHTML = `
-                    <i class="fas fa-exclamation-circle" style="color: var(--warning);"></i> 
-                    Alignment service unavailable, using Kokoro timestamps
-                `;
-                audioStatus.className = 'status-message status-warning';
-            }
-            
-            if (nextBtn) nextBtn.disabled = false;
-            if (prevBtn) prevBtn.disabled = false;
-            
-            Toast.show('Using Kokoro timestamps (alignment failed)', 'warning');
+
+            Toast.show('ArchxAUDSBT alignment complete — perfect sync!', 'success');
+        } else {
+            setStatus(
+                `<i class="fas fa-exclamation-circle" style="color:var(--warning)"></i>
+                 Alignment unavailable — using Kokoro timestamps`,
+                'status-message status-warning',
+            );
+            Toast.show('Using Kokoro timestamps (alignment unavailable)', 'warning');
         }
-        
-        if (audioBtn) {
-            audioBtn.disabled = false;
-            audioBtn.innerHTML = '<i class="fas fa-play"></i> Regenerate Audio';
-        }
-        
-    } catch (error) {
-        console.error('❌ Generation failed:', error);
-        
-        if (audioStatus) {
-            audioStatus.innerHTML = `<i class="fas fa-exclamation-circle" style="color: var(--error);"></i> ${error.message}`;
-            audioStatus.className = 'status-message status-error';
-        }
-        
-        if (audioBtn) {
-            audioBtn.disabled = false;
-            audioBtn.innerHTML = '<i class="fas fa-play"></i> Generate Audio';
-        }
-        
+
+        if (nextBtn) nextBtn.disabled = false;
         if (prevBtn) prevBtn.disabled = false;
-        
+        if (audioBtn) { audioBtn.disabled = false; audioBtn.innerHTML = '<i class="fas fa-play"></i> Regenerate Audio'; }
+
+    } catch (error) {
+        console.error('❌ Audio generation failed:', error);
+        setStatus(
+            `<i class="fas fa-exclamation-circle" style="color:var(--error)"></i> ${error.message}`,
+            'status-message status-error',
+        );
+        if (audioBtn) { audioBtn.disabled = false; audioBtn.innerHTML = '<i class="fas fa-play"></i> Generate Audio'; }
+        if (prevBtn)    prevBtn.disabled = false;
         Toast.show('Failed: ' + error.message, 'error', 5000);
     }
 }
 
 async function generateKokoroAudio(text, voiceId, rate) {
-    /** Generate audio with Kokoro-82M and get raw timestamps */
-    
-    console.log(`Calling Kokoro-82M API: ${TTS_API}/tts`);
-    
-    const response = await fetch(`${TTS_API}/tts`, {
+    const resp = await fetch(`${TTS_API}/tts`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Origin': window.location.origin
-        },
+        headers: { 'Content-Type': 'application/json' },
         mode: 'cors',
-        body: JSON.stringify({
-            text: text,
-            voice: voiceId,
-            rate: rate
-        })
+        body: JSON.stringify({ text, voice: voiceId, rate }),
     });
-    
-    if (!response.ok) {
-        const errorText = await response.text();
-        let errorMsg = `Kokoro-82M failed: ${response.status}`;
-        try {
-            const errorJson = JSON.parse(errorText);
-            errorMsg = errorJson.detail || errorMsg;
-        } catch (e) {}
-        throw new Error(errorMsg);
+
+    if (!resp.ok) {
+        let msg = `Kokoro-82M HTTP ${resp.status}`;
+        try { const j = await resp.json(); msg = j.detail || msg; } catch (_) {}
+        throw new Error(msg);
     }
-    
-    const data = await response.json();
-    
-    console.log('✅ Kokoro-82M response received');
-    console.log('Duration:', data.duration);
-    console.log('Raw timestamps:', data.word_timestamps?.length, 'words');
-    
-    // Store everything
+
+    const data = await resp.json();
+    console.log(`Kokoro: ${data.duration}s, ${data.word_timestamps?.length} words`);
+
     state.wordTimestamps = data.word_timestamps || [];
-    state.audioDuration = data.duration;
-    state.audioBase64 = data.audio_base64;
-    
-    // Create audio blob for preview
-    const audioBytes = atob(data.audio_base64);
-    const audioArray = new Uint8Array(audioBytes.length);
-    for (let i = 0; i < audioBytes.length; i++) {
-        audioArray[i] = audioBytes.charCodeAt(i);
-    }
-    
-    state.audioBlob = new Blob([audioArray], { type: 'audio/wav' });
-    
-    const audioPreview = document.getElementById('audioPreview');
-    if (audioPreview) {
-        const blobUrl = URL.createObjectURL(state.audioBlob);
-        audioPreview.src = blobUrl;
-    }
-    
+    state.audioDuration  = data.duration;
+    state.audioBase64    = data.audio_base64;
+
+    // Build audio blob for <audio> preview
+    const bytes = atob(data.audio_base64);
+    const buf   = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
+    state.audioBlob = new Blob([buf], { type: 'audio/wav' });
+
+    const preview = document.getElementById('audioPreview');
+    if (preview) preview.src = URL.createObjectURL(state.audioBlob);
+
     return data;
 }
 
-// Fallback: Generate ASS from Kokoro timestamps
+// Fallback: build ASS directly from Kokoro chunk timestamps
 function generateFallbackSubtitles(wordTimestamps) {
-    if (!wordTimestamps || wordTimestamps.length === 0) {
-        return '';
-    }
-    
-    const assHeader = `[Script Info]
+    if (!wordTimestamps || wordTimestamps.length === 0) return '';
+
+    const header = `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
 PlayResY: 1920
@@ -693,42 +527,29 @@ Style: KokoroWord,Arial Black,110,&H00FFFF00,&H00FFFFFF,&H00000000,&H80000000,-1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
-    
-    const dialogueLines = wordTimestamps.map(wordData => {
-        return `Dialogue: 1,${formatASSTime(wordData.start)},${formatASSTime(wordData.end)},KokoroWord,,0,0,0,,{\\c&H00FFFF&}{\\b1}${wordData.word}{\\b0}`;
-    });
-    
-    return assHeader + '\n' + dialogueLines.join('\n') + '\n';
+
+    const lines = wordTimestamps.map(w =>
+        `Dialogue: 1,${formatASSTime(w.start)},${formatASSTime(w.end)},KokoroWord,,0,0,0,,{\\c&H00FFFF&}{\\b1}${w.word}{\\b0}`
+    );
+
+    return header + '\n' + lines.join('\n') + '\n';
 }
 
 function formatASSTime(seconds) {
     seconds = Math.max(0, seconds);
-    const hrs = Math.floor(seconds / 3600);
+    const hrs  = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    const centisecs = Math.round((seconds % 1) * 100);
-    return `${hrs}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}.${String(centisecs).padStart(2,'0')}`;
+    const cs   = Math.round((seconds % 1) * 100);
+    return `${hrs}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
 }
 
 function updateGenerationInfo() {
-    const scriptLength = state.script.length;
-    const infoLength = document.getElementById('infoLength');
-    const infoDuration = document.getElementById('infoDuration');
-    const infoBackground = document.getElementById('infoBackground');
-    const infoTime = document.getElementById('infoTime');
-    
-    if (infoLength) infoLength.textContent = `${scriptLength} characters`;
-    
-    const duration = Math.round(state.audioDuration * 10) / 10;
-    if (infoDuration) infoDuration.textContent = `${duration}s`;
-    
-    if (infoBackground) {
-        infoBackground.textContent = state.selectedVideo ? 
-            state.selectedVideo.toUpperCase() : 'Not selected';
-    }
-    
-    const estimatedTime = Math.round(10 + (state.audioDuration * 0.5));
-    if (infoTime) infoTime.textContent = `${estimatedTime}s`;
+    const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    set('infoLength',     `${state.script.length} characters`);
+    set('infoDuration',   `${Math.round(state.audioDuration * 10) / 10}s`);
+    set('infoBackground', state.selectedVideo ? state.selectedVideo.toUpperCase() : 'Not selected');
+    set('infoTime',       `${Math.round(10 + state.audioDuration * 0.5)}s`);
 }
 
 // ========== VIDEO GENERATION ==========
@@ -737,342 +558,149 @@ async function generateVideo() {
         Toast.show('Please complete all previous steps', 'error');
         return;
     }
-    
-    if (state.audioBase64.length < 100) {
-        Toast.show('Audio data appears to be invalid', 'error');
-        return;
-    }
-    
-    if (!state.audioDuration || state.audioDuration < 1) {
-        Toast.show('Invalid audio duration', 'error');
-        return;
-    }
-    
-    const generateBtn = document.getElementById('generateVideoBtn');
+    if (state.audioBase64.length < 100) { Toast.show('Audio data invalid', 'error'); return; }
+    if (!state.audioDuration || state.audioDuration < 1) { Toast.show('Invalid audio duration', 'error'); return; }
+
+    const generateBtn   = document.getElementById('generateVideoBtn');
     const statusMessage = document.getElementById('statusMessage');
-    
-    if (generateBtn) {
-        generateBtn.disabled = true;
-        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    }
-    
-    state.isProcessing = true;
-    
-    if (statusMessage) {
-        statusMessage.innerHTML = `
-            <i class="fas fa-robot"></i> 
-            Initializing ArchNemix AI Pipeline with ArchxAUDSBT aligned subtitles...
-        `;
-        statusMessage.className = 'status-message';
-    }
-    
-    const progressFill = document.getElementById('progressFill');
-    const progressPercent = document.getElementById('progressPercent');
-    const progressText = document.getElementById('progressText');
-    
+    const progressFill  = document.getElementById('progressFill');
+    const progressPct   = document.getElementById('progressPercent');
+    const progressTxt   = document.getElementById('progressText');
+
+    if (generateBtn) { generateBtn.disabled = true; generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...'; }
+    if (statusMessage) statusMessage.innerHTML = `<i class="fas fa-robot"></i> Initializing ArchNemix AI Pipeline...`;
     if (progressFill) progressFill.style.width = '0%';
-    if (progressPercent) progressPercent.textContent = '0%';
-    if (progressText) progressText.textContent = 'Starting generation...';
-    
+    if (progressPct)  progressPct.textContent = '0%';
+    if (progressTxt)  progressTxt.textContent  = 'Starting generation…';
+    state.isProcessing = true;
+
     try {
-        console.log('Sending generation request to backend...');
-        console.log('Audio duration:', state.audioDuration);
-        console.log('Background:', state.selectedVideo);
-        console.log('Audio size:', state.audioBase64.length, 'chars');
-        console.log('Subtitles size:', state.subtitlesASS.length, 'chars');
-        console.log('Word timestamps:', state.wordTimestamps.length, 'words');
-        
-        const response = await fetch(`${API_URL}/generate`, {
+        const resp = await fetch(`${API_URL}/generate`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-APP-KEY': APP_KEY
-            },
+            headers: { 'Content-Type': 'application/json', 'X-APP-KEY': APP_KEY },
             body: JSON.stringify({
-                audio_base64: state.audioBase64,
-                subtitles_ass: state.subtitlesASS,
-                background: state.selectedVideo,
-                duration: state.audioDuration,
-                request_id: `archnemix_${Date.now()}`
-            })
+                audio_base64:   state.audioBase64,
+                subtitles_ass:  state.subtitlesASS,
+                background:     state.selectedVideo,
+                duration:       state.audioDuration,
+                request_id:     `archnemix_${Date.now()}`,
+            }),
         });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('API error:', response.status, errorText);
-            throw new Error(`API error ${response.status}: ${errorText}`);
+
+        if (!resp.ok) {
+            const errText = await resp.text();
+            throw new Error(`API ${resp.status}: ${errText}`);
         }
-        
-        const data = await response.json();
+
+        const data = await resp.json();
         state.currentJobId = data.job_id;
-        
-        console.log('Job created:', state.currentJobId);
-        
-        if (statusMessage) {
-            statusMessage.innerHTML = `
-                <i class="fas fa-check-circle" style="color: var(--success);"></i>
-                <strong>Job Started:</strong> ${state.currentJobId.substring(0, 8)}...
-                <br><small>Estimated time: ${data.estimated_time || 30}s</small>
-            `;
-            statusMessage.className = 'status-message status-success';
-        }
-        
+        if (statusMessage) statusMessage.innerHTML = `
+            <i class="fas fa-check-circle" style="color:var(--success)"></i>
+            <strong>Job Started:</strong> ${state.currentJobId.substring(0, 8)}…
+            <br><small>Estimated: ${data.estimated_time || 30}s</small>
+        `;
         startJobPolling();
-        
-        Toast.show('Video generation started with ArchxAUDSBT aligned subtitles', 'success');
-        
+        Toast.show('Video generation started!', 'success');
+
     } catch (error) {
-        console.error('Generation failed:', error);
-        
-        let errorMsg = 'Failed to start generation';
-        if (error.message.includes('Rate limit')) {
-            errorMsg = 'Rate limit exceeded (3/hour)';
-        } else if (error.message.includes('404')) {
-            errorMsg = 'Backend server not responding';
-        } else if (error.message.includes('Invalid')) {
-            errorMsg = 'Invalid request data';
-        }
-        
-        if (statusMessage) {
-            statusMessage.innerHTML = `
-                <i class="fas fa-exclamation-circle" style="color: var(--error);"></i>
-                <strong>Error:</strong> ${errorMsg}
-            `;
-            statusMessage.className = 'status-message status-error';
-        }
-        
-        if (generateBtn) {
-            generateBtn.disabled = false;
-            generateBtn.innerHTML = '<i class="fas fa-bolt"></i> Try Again';
-        }
-        
+        console.error('Generate video failed:', error);
+        let msg = error.message.includes('Rate limit') ? 'Rate limit exceeded (3/hour)' : error.message;
+        if (statusMessage) statusMessage.innerHTML = `<i class="fas fa-exclamation-circle" style="color:var(--error)"></i> <strong>Error:</strong> ${msg}`;
+        if (generateBtn) { generateBtn.disabled = false; generateBtn.innerHTML = '<i class="fas fa-bolt"></i> Try Again'; }
         state.isProcessing = false;
-        
-        Toast.show(errorMsg, 'error');
+        Toast.show(msg, 'error');
     }
 }
 
 function startJobPolling() {
-    if (state.jobPollInterval) {
-        clearInterval(state.jobPollInterval);
-    }
-    
-    console.log('Starting job polling for:', state.currentJobId);
-    
+    if (state.jobPollInterval) clearInterval(state.jobPollInterval);
     state.jobPollInterval = setInterval(async () => {
-        if (!state.currentJobId) {
-            clearInterval(state.jobPollInterval);
-            return;
-        }
-        
+        if (!state.currentJobId) { clearInterval(state.jobPollInterval); return; }
         try {
-            const response = await fetch(`${API_URL}/job/${state.currentJobId}`);
-            
-            if (!response.ok) {
-                console.error('Status check failed:', response.status);
-                
-                if (response.status === 404) {
-                    clearInterval(state.jobPollInterval);
-                    updateJobStatus({
-                        status: 'failed',
-                        error: 'Job not found - may have expired'
-                    });
-                }
+            const resp = await fetch(`${API_URL}/job/${state.currentJobId}`);
+            if (!resp.ok) {
+                if (resp.status === 404) { clearInterval(state.jobPollInterval); updateJobStatus({ status: 'failed', error: 'Job not found — may have expired' }); }
                 return;
             }
-            
-            const data = await response.json();
-            updateJobStatus(data);
-            
-        } catch (error) {
-            console.error('Polling error:', error);
-        }
+            updateJobStatus(await resp.json());
+        } catch (e) { console.warn('Poll error:', e); }
     }, 3000);
 }
 
 function updateJobStatus(data) {
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
-    const progressPercent = document.getElementById('progressPercent');
-    const statusMessage = document.getElementById('statusMessage');
-    const resultSection = document.getElementById('resultSection');
-    const generateBtn = document.getElementById('generateVideoBtn');
-    
-    console.log('Job status update:', data.status, data.progress + '%', data.message);
-    
+    const fill  = document.getElementById('progressFill');
+    const pct   = document.getElementById('progressPercent');
+    const txt   = document.getElementById('progressText');
+    const msg   = document.getElementById('statusMessage');
+    const res   = document.getElementById('resultSection');
+    const btn   = document.getElementById('generateVideoBtn');
+
     if (data.status === 'processing' || data.status === 'pending') {
-        const progress = data.progress || 0;
-        if (progressFill) progressFill.style.width = `${progress}%`;
-        if (progressPercent) progressPercent.textContent = `${progress}%`;
-        if (progressText) progressText.textContent = data.message || 'Processing...';
-        
-        if (statusMessage) {
-            statusMessage.innerHTML = `
-                <i class="fas fa-spinner fa-spin"></i>
-                <strong>Processing:</strong> ${data.message || 'Generating your short...'}
-            `;
-        }
-        
+        const p = data.progress || 0;
+        if (fill) fill.style.width = `${p}%`;
+        if (pct)  pct.textContent  = `${p}%`;
+        if (txt)  txt.textContent  = data.message || 'Processing…';
+        if (msg)  msg.innerHTML    = `<i class="fas fa-spinner fa-spin"></i> <strong>Processing:</strong> ${data.message || 'Generating…'}`;
+
     } else if (data.status === 'completed') {
-        if (state.jobPollInterval) {
-            clearInterval(state.jobPollInterval);
-            state.jobPollInterval = null;
-        }
-        
-        console.log('✅ Video generation completed!');
-        
-        if (progressFill) progressFill.style.width = '100%';
-        if (progressPercent) progressPercent.textContent = '100%';
-        if (progressText) progressText.textContent = 'Completed!';
-        
-        if (statusMessage) {
-            statusMessage.innerHTML = `
-                <i class="fas fa-check-circle" style="color: var(--success);"></i>
-                <strong>Success!</strong> Video with ArchxAUDSBT aligned subtitles ready!
-            `;
-            statusMessage.className = 'status-message status-success';
-        }
-        
+        clearInterval(state.jobPollInterval); state.jobPollInterval = null;
+        if (fill) fill.style.width = '100%';
+        if (pct)  pct.textContent  = '100%';
+        if (txt)  txt.textContent  = 'Completed!';
+        if (msg) { msg.innerHTML = `<i class="fas fa-check-circle" style="color:var(--success)"></i> <strong>Success!</strong> Your short is ready!`; msg.className = 'status-message status-success'; }
+
         const resultVideo = document.getElementById('resultVideo');
-        const downloadBtn = document.getElementById('downloadBtn');
-        
-        if (resultVideo) {
-            const videoUrl = `${API_URL}/download/${state.currentJobId}`;
-            resultVideo.src = videoUrl;
-        }
-        
-        if (downloadBtn) {
-            downloadBtn.href = `${API_URL}/download/${state.currentJobId}`;
-            downloadBtn.download = `archnemix-short-${state.currentJobId.substring(0, 8)}.mp4`;
-        }
-        
-        if (resultSection) {
-            resultSection.style.display = 'block';
-        }
-        
-        if (generateBtn) {
-            generateBtn.style.display = 'none';
-        }
-        
-        if (resultSection) {
-            resultSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-        
+        const dlBtn       = document.getElementById('downloadBtn');
+        if (resultVideo) resultVideo.src = `${API_URL}/download/${state.currentJobId}`;
+        if (dlBtn) { dlBtn.href = `${API_URL}/download/${state.currentJobId}`; dlBtn.download = `archnemix-${state.currentJobId.substring(0,8)}.mp4`; }
+        if (res) { res.style.display = 'block'; res.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        if (btn) btn.style.display = 'none';
         state.isProcessing = false;
         Toast.show('Your ArchNemix short is ready!', 'success', 5000);
-        
+
     } else if (data.status === 'failed') {
-        if (state.jobPollInterval) {
-            clearInterval(state.jobPollInterval);
-            state.jobPollInterval = null;
-        }
-        
-        console.error('❌ Video generation failed:', data.error);
-        
-        if (progressFill) progressFill.style.width = '0%';
-        if (progressPercent) progressPercent.textContent = '0%';
-        if (progressText) progressText.textContent = 'Failed';
-        
-        if (statusMessage) {
-            statusMessage.innerHTML = `
-                <i class="fas fa-exclamation-circle" style="color: var(--error);"></i>
-                <strong>Failed:</strong> ${data.error || 'Unknown error'}
-            `;
-            statusMessage.className = 'status-message status-error';
-        }
-        
-        if (generateBtn) {
-            generateBtn.disabled = false;
-            generateBtn.innerHTML = '<i class="fas fa-bolt"></i> Try Again';
-            generateBtn.style.display = 'block';
-        }
-        
+        clearInterval(state.jobPollInterval); state.jobPollInterval = null;
+        if (fill) fill.style.width = '0%';
+        if (pct)  pct.textContent  = '0%';
+        if (txt)  txt.textContent  = 'Failed';
+        if (msg) { msg.innerHTML = `<i class="fas fa-exclamation-circle" style="color:var(--error)"></i> <strong>Failed:</strong> ${data.error || 'Unknown error'}`; msg.className = 'status-message status-error'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt"></i> Try Again'; btn.style.display = 'block'; }
         state.isProcessing = false;
-        
         Toast.show('Video generation failed', 'error', 5000);
     }
 }
 
 function resetApplication() {
-    if (state.jobPollInterval) {
-        clearInterval(state.jobPollInterval);
-        state.jobPollInterval = null;
-    }
-    
-    // Reset state
-    state.audioBlob = null;
-    state.audioDuration = 0;
-    state.subtitlesASS = "";
-    state.selectedVideo = "mc1";
-    state.currentJobId = "";
-    state.audioBase64 = "";
-    state.script = "";
-    state.isProcessing = false;
-    state.wordTimestamps = [];
-    
-    // Reset UI elements
-    const scriptInput = document.getElementById('scriptInput');
-    if (scriptInput) scriptInput.value = '';
-    
-    const charCount = document.getElementById('charCount');
-    if (charCount) charCount.textContent = '0';
-    
-    const charCounter = document.getElementById('charCounter');
-    if (charCounter) charCounter.className = 'char-counter';
-    
-    const audioPreview = document.getElementById('audioPreview');
-    if (audioPreview) audioPreview.src = '';
-    
-    const audioStatus = document.getElementById('audioStatus');
-    if (audioStatus) {
-        audioStatus.innerHTML = '<i class="fas fa-info-circle"></i> Click "Generate Audio" to preview with Kokoro-82M';
-        audioStatus.className = 'status-message';
-    }
-    
-    const subtitlePreview = document.getElementById('subtitlePreview');
-    if (subtitlePreview) {
-        subtitlePreview.innerHTML = '<i class="fas fa-closed-captioning"></i> One-word-at-a-time subtitles will be generated';
-        subtitlePreview.className = 'status-message';
-    }
-    
-    document.querySelectorAll('.video-card').forEach(card => {
-        card.classList.remove('selected');
+    if (state.jobPollInterval) { clearInterval(state.jobPollInterval); state.jobPollInterval = null; }
+    Object.assign(state, {
+        audioBlob: null, audioDuration: 0, subtitlesASS: "", selectedVideo: "mc1",
+        currentJobId: "", audioBase64: "", script: "", isProcessing: false, wordTimestamps: []
     });
-    
-    const resultSection = document.getElementById('resultSection');
-    if (resultSection) resultSection.style.display = 'none';
-    
-    const generateBtn = document.getElementById('generateVideoBtn');
-    if (generateBtn) {
-        generateBtn.style.display = 'block';
-        generateBtn.disabled = false;
-        generateBtn.innerHTML = '<i class="fas fa-bolt"></i> Generate Now';
-    }
-    
-    const progressFill = document.getElementById('progressFill');
-    if (progressFill) progressFill.style.width = '0%';
-    
-    const progressPercent = document.getElementById('progressPercent');
-    if (progressPercent) progressPercent.textContent = '0%';
-    
-    const progressText = document.getElementById('progressText');
-    if (progressText) progressText.textContent = 'Ready to generate';
-    
-    const statusMessage = document.getElementById('statusMessage');
-    if (statusMessage) {
-        statusMessage.innerHTML = '<i class="fas fa-info-circle"></i> Click "Generate Now" to start';
-        statusMessage.className = 'status-message';
-    }
-    
+
+    const reset = (id, prop, val) => { const el = document.getElementById(id); if (el) el[prop] = val; };
+    reset('scriptInput', 'value', '');
+    reset('charCount', 'textContent', '0');
+    reset('charCounter', 'className', 'char-counter');
+    reset('audioPreview', 'src', '');
+    reset('audioStatus', 'innerHTML', '<i class="fas fa-info-circle"></i> Click "Generate Audio" to preview with Kokoro-82M');
+    reset('audioStatus', 'className', 'status-message');
+    reset('subtitlePreview', 'innerHTML', '<i class="fas fa-closed-captioning"></i> One-word-at-a-time subtitles will be generated');
+    reset('resultSection', 'style.display', 'none');
+    reset('progressFill', 'style.width', '0%');
+    reset('progressPercent', 'textContent', '0%');
+    reset('progressText', 'textContent', 'Ready to generate');
+    reset('statusMessage', 'innerHTML', '<i class="fas fa-info-circle"></i> Click "Generate Now" to start');
+    reset('statusMessage', 'className', 'status-message');
+
+    document.querySelectorAll('.video-card').forEach(c => c.classList.remove('selected'));
+
+    const btn = document.getElementById('generateVideoBtn');
+    if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt"></i> Generate Now'; }
+
     goToStep(1);
-    
-    const firstVideo = document.querySelector('.video-card');
-    if (firstVideo) {
-        setTimeout(() => firstVideo.click(), 100);
-    }
-    
+    const first = document.querySelector('.video-card');
+    if (first) setTimeout(() => first.click(), 100);
     Toast.show('Ready for new creation', 'info');
-    console.log('Application reset');
 }
 
 // ========== DEBUG UTILITIES ==========
@@ -1085,110 +713,58 @@ window.debugState = () => {
         selectedVideo: state.selectedVideo,
         currentJob: state.currentJobId,
         isProcessing: state.isProcessing,
-        availableVoices: state.availableTTSVoices.length,
         wordTimestamps: state.wordTimestamps.length,
         ttsEngine: 'Kokoro-82M',
-        aligner: 'ArchxAUDSBT'
+        aligner: 'ArchxAUDSBT v2',
     });
     return state;
 };
 
 window.testAlignment = async (text = "Hello world, this is a test of the ArchxAUDSBT alignment service.") => {
+    console.log('🧪 Testing Kokoro-82M → ArchxAUDSBT pipeline...');
     try {
-        console.log('🧪 Testing Kokoro-82M + ArchxAUDSBT alignment...');
-        
-        // Step 1: Get audio from Kokoro
-        const ttsResponse = await fetch(`${TTS_API}/tts`, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Origin': window.location.origin
-            },
-            mode: 'cors',
-            body: JSON.stringify({ 
-                text, 
-                voice: 'male_high', 
-                rate: 1.0 
-            })
+        const ttsResp = await fetch(`${TTS_API}/tts`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, mode: 'cors',
+            body: JSON.stringify({ text, voice: 'male_high', rate: 1.0 }),
         });
-        
-        if (!ttsResponse.ok) {
-            throw new Error(`TTS failed: ${ttsResponse.status}`);
-        }
-        
-        const ttsData = await ttsResponse.json();
-        console.log('✅ Kokoro audio generated:', ttsData.duration, 's');
-        console.log('Timestamps:', ttsData.word_timestamps?.length, 'words');
-        
-        // Step 2: Send to aligner
-        const alignResponse = await fetch(`${ALIGNER_API}/align`, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Origin': window.location.origin
-            },
-            mode: 'cors',
+        if (!ttsResp.ok) throw new Error(`TTS HTTP ${ttsResp.status}`);
+        const ttsData = await ttsResp.json();
+        console.log(`✅ Kokoro: ${ttsData.duration}s, ${ttsData.word_timestamps?.length} words`);
+
+        const alignResp = await fetch(`${ALIGNER_API}/align`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, mode: 'cors',
             body: JSON.stringify({
-                audio: ttsData.audio_base64,
-                text: text,
+                audio: ttsData.audio_base64, text,
                 initial_timestamps: ttsData.word_timestamps,
-                output_format: 'ass',
-                language: 'en'
-            })
+                output_format: 'ass', language: 'en', sample_rate: 24000,
+            }),
         });
-        
-        if (!alignResponse.ok) {
-            throw new Error(`Alignment failed: ${alignResponse.status}`);
-        }
-        
-        const alignData = await alignResponse.json();
-        console.log('✅ Alignment result:', alignData);
-        
-        if (alignData.ass_subtitles) {
-            console.log('ASS Subtitles preview:', alignData.ass_subtitles.substring(0, 300) + '...');
-        }
-        
-        Toast.show('Alignment test complete - check console', 'success');
+        if (!alignResp.ok) throw new Error(`Aligner HTTP ${alignResp.status}`);
+        const alignData = await alignResp.json();
+        console.log('✅ Aligner response:', alignData.status);
+        if (alignData.ass_subtitles) console.log('ASS preview:', alignData.ass_subtitles.substring(0, 400));
+        Toast.show('Pipeline test complete — check console', 'success');
         return alignData;
-        
-    } catch (error) {
-        console.error('Test failed:', error);
-        Toast.show('Test failed: ' + error.message, 'error');
+    } catch (err) {
+        console.error('Test failed:', err);
+        Toast.show('Test failed: ' + err.message, 'error');
         return null;
     }
 };
 
-window.testTTS = async (text = "Hello world, this is a test of Kokoro-82M.") => {
+window.testTTS = async (text = "Hello, Kokoro-82M test.") => {
     try {
-        const response = await fetch(`${TTS_API}/tts`, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Origin': window.location.origin
-            },
-            mode: 'cors',
-            body: JSON.stringify({ 
-                text, 
-                voice: 'male_high', 
-                rate: 1.0 
-            })
+        const resp = await fetch(`${TTS_API}/tts`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, mode: 'cors',
+            body: JSON.stringify({ text, voice: 'male_high', rate: 1.0 }),
         });
-        
-        const data = await response.json();
-        console.log('✅ TTS Test:', data);
-        
-        // Play audio
-        const audio = new Audio('data:audio/wav;base64,' + data.audio_base64);
-        audio.play();
-        
+        const data = await resp.json();
+        console.log('✅ TTS:', data.duration + 's', data.word_timestamps?.length + ' words');
+        new Audio('data:audio/wav;base64,' + data.audio_base64).play();
         return data;
-    } catch (error) {
-        console.error('TTS test failed:', error);
-    }
+    } catch (err) { console.error('TTS test failed:', err); }
 };
 
-// Log startup
-console.log('🚀 ArchNemix Shorts Generator v16.0');
-console.log('🎯 TTS: Kokoro-82M');
-console.log('🔧 Aligner: ArchxAUDSBT');
-console.log('📝 Commands: debugState(), testAlignment(), testTTS()');
+console.log('🚀 ArchNemix Shorts Generator v2.0');
+console.log('🎯 TTS: Kokoro-82M | 🔧 Aligner: ArchxAUDSBT v2.0');
+console.log('📝 Debug: debugState() | testAlignment() | testTTS()');
