@@ -22,7 +22,10 @@ const state = {
     jobPollInterval: null,
     isProcessing: false,
     availableTTSVoices: [],
-    wordTimestamps: []
+    wordTimestamps: [],       // original from TTS
+    editedTimestamps: [],     // user-edited copy
+    previewAnimFrame: null,
+    previewAudio: null,
 };
 
 // ========== TOAST NOTIFICATION SYSTEM ==========
@@ -72,7 +75,7 @@ document.head.appendChild(toastStyles);
 
 // ========== MAIN INITIALIZATION ==========
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('✨ ArchNemix Shorts Generator v3.0 — ONNX Timestamped');
+    console.log('✨ ArchNemix Shorts Generator v3.1 — ONNX Timestamped + Subtitle Preview');
     initializeApplication();
 });
 
@@ -101,15 +104,19 @@ function setupEventListeners() {
     }
 
     const navMap = [
-        ['nextStep1', () => goToStep(2)],
-        ['prevStep2', () => goToStep(1)],
-        ['nextStep2', () => goToStep(3)],
-        ['prevStep3', () => goToStep(2)],
-        ['nextStep3', () => goToStep(4)],
-        ['prevStep4', () => goToStep(3)],
-        ['generateAudioBtn', generateAudio],
-        ['generateVideoBtn', generateVideo],
-        ['newVideoBtn', resetApplication],
+        ['nextStep1',          () => goToStep(2)],
+        ['prevStep2',          () => goToStep(1)],
+        ['nextStep2',          () => goToStep(2.5)],       // → subtitle preview
+        ['prevStep2_5',        () => goToStep(2)],          // ← back to audio
+        ['applyTimestampEdits', applyTimestampEdits],
+        ['nextStep2_5',        () => goToStep(3)],          // → visuals
+        ['prevStep3',          () => goToStep(2.5)],        // ← back to preview
+        ['nextStep3',          () => goToStep(4)],
+        ['prevStep4',          () => goToStep(3)],
+        ['generateAudioBtn',   generateAudio],
+        ['generateVideoBtn',   generateVideo],
+        ['newVideoBtn',        resetApplication],
+        ['resetTimestamps',    resetTimestamps],
     ];
     navMap.forEach(([id, fn]) => {
         const el = document.getElementById(id);
@@ -144,32 +151,49 @@ function handleScriptInput(e) {
     if (nextBtn) nextBtn.disabled = count < 10;
 }
 
+// Steps: 1, 2, 2.5, 3, 4
+const STEP_IDS = [1, 2, 2.5, 3, 4];
+
 function goToStep(step) {
     state.currentStep = step;
+
+    // Stop any running preview when leaving step 2.5
+    if (step !== 2.5) {
+        stopPreview();
+    }
+
     updateStepIndicators();
     updateStepContent();
     if (step === 4) updateGenerationInfo();
+
+    // Initialize preview when entering step 2.5
+    if (step === 2.5) {
+        initSubtitlePreview();
+    }
 }
 
 function updateStepIndicators() {
-    document.querySelectorAll('.step-indicator').forEach((el, idx) => {
-        el.classList.toggle('active', idx + 1 === state.currentStep);
+    document.querySelectorAll('.step-indicator').forEach(el => {
+        const s = parseFloat(el.dataset.step);
+        el.classList.toggle('active', s === state.currentStep);
+        el.classList.toggle('completed', s < state.currentStep);
     });
 }
 
 function updateStepContent() {
-    document.querySelectorAll('.step-content').forEach((el, idx) => {
-        el.classList.toggle('active', idx + 1 === state.currentStep);
+    document.querySelectorAll('.step-content').forEach(el => {
+        const s = parseFloat(el.dataset.step);
+        el.classList.toggle('active', s === state.currentStep);
     });
 }
 
 // ========== VOICE INITIALIZATION ==========
 async function initializeVoices() {
     const fallbackVoices = [
-        { id: 'male_high',   name: 'Michael (US Male) - High Quality', quality: 'high' },
-        { id: 'male_medium', name: 'Adam (US Male) - Clear',           quality: 'medium' },
-        { id: 'female_high', name: 'Sarah (US Female) - High Quality', quality: 'high' },
-        { id: 'female_medium', name: 'Sky (US Female) - Natural',      quality: 'medium' },
+        { id: 'male_high',     name: 'Michael (US Male) - High Quality', quality: 'high' },
+        { id: 'male_medium',   name: 'Adam (US Male) - Clear',           quality: 'medium' },
+        { id: 'female_high',   name: 'Sarah (US Female) - High Quality', quality: 'high' },
+        { id: 'female_medium', name: 'Sky (US Female) - Natural',        quality: 'medium' },
     ];
 
     const select = document.getElementById('voiceSelect');
@@ -297,31 +321,25 @@ async function generateAudio() {
     try {
         await generateKokoroAudio(state.script, voiceId, rate);
 
-        // Timestamps from ONNX model are exact — build subtitles directly
-        state.subtitlesASS = buildSubtitles(state.wordTimestamps);
+        // Deep-copy timestamps for editing
+        state.editedTimestamps = JSON.parse(JSON.stringify(state.wordTimestamps));
+
+        // Build subtitles from timestamps
+        state.subtitlesASS = buildSubtitles(state.editedTimestamps);
 
         console.log(`✅ Done: ${state.audioDuration.toFixed(1)}s, ${state.wordTimestamps.length} words`);
 
         setStatus(
             `<i class="fas fa-check-circle" style="color:var(--success)"></i>
-             Audio ready! ${state.audioDuration.toFixed(1)}s · ${state.wordTimestamps.length} words`,
+             Audio ready! ${state.audioDuration.toFixed(1)}s · ${state.wordTimestamps.length} words — preview sync in the next step`,
             'status-message status-success',
         );
-
-        const preview = document.getElementById('subtitlePreview');
-        if (preview) {
-            preview.innerHTML = `
-                <i class="fas fa-closed-captioning" style="color:var(--success)"></i>
-                <strong>Exact sync</strong> — ${state.wordTimestamps.length} words · ~12.5ms precision
-            `;
-            preview.className = 'status-message status-success';
-        }
 
         if (nextBtn) nextBtn.disabled = false;
         if (prevBtn) prevBtn.disabled = false;
         if (audioBtn) { audioBtn.disabled = false; audioBtn.innerHTML = '<i class="fas fa-play"></i> Regenerate Audio'; }
 
-        Toast.show(`Audio ready — exact timestamps`, 'success');
+        Toast.show(`Audio ready — preview & edit sync next`, 'success');
 
     } catch (error) {
         console.error('❌ Generation failed:', error);
@@ -368,13 +386,10 @@ async function generateKokoroAudio(text, voiceId, rate) {
     return data;
 }
 
+// ========== SUBTITLE BUILD ==========
 // How many seconds BEFORE the word to show the subtitle.
-// 0.10 = 100ms early — subtitle pops up slightly ahead of speech.
-// Change this one number to tune sync.
 const SUBTITLE_LEAD_S = 0.10;
 
-// Build ASS subtitles from ONNX timestamps
-// 3-4 word groups, active word yellow, rest white
 function buildSubtitles(wordTimestamps) {
     if (!wordTimestamps || wordTimestamps.length === 0) return '';
 
@@ -395,11 +410,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
     const YELLOW = '{\\c&H00FFFF&\\b1}';
     const WHITE  = '{\\c&H00FFFFFF&\\b0}';
     const RESET  = '{\\r}';
-    const BREAK_PUNCT = new Set(['.', '!', '?', ',', ';', ':', '—', '–']);
     const TARGET = 3;
     const MAX    = 4;
 
-    // Group words into chunks of ~3-4
     const groups = [];
     let current  = [];
 
@@ -418,26 +431,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
     }
     if (current.length) groups.push(current);
 
-    // Build dialogue lines
     const lines = [];
     for (const group of groups) {
         if (!group.length) continue;
-        const cleanWords = group.map(w =>
-            (w.word || '').replace(/[{}\\]/g, '')
-        );
+        const cleanWords = group.map(w => (w.word || '').replace(/[{}\\]/g, ''));
 
         for (let i = 0; i < group.length; i++) {
             const w = group[i];
-            // Subtract lead offset so subtitle appears 100ms before speech
             let wStart = Math.max(0, w.start - SUBTITLE_LEAD_S);
             let wEnd   = Math.max(wStart + 0.05, w.end - SUBTITLE_LEAD_S);
 
-            // Build styled text
             const parts = cleanWords.map((word, j) =>
                 j === i ? `${YELLOW}${word}${RESET}` : `${WHITE}${word}${RESET}`
             );
 
-            // Split into 2 lines — ceiling so more words go on top
             const half   = Math.ceil(parts.length / 2);
             const line1  = parts.slice(0, half).join(' ');
             const line2  = parts.slice(half).join(' ');
@@ -467,6 +474,253 @@ function updateGenerationInfo() {
     set('infoDuration',   `${Math.round(state.audioDuration * 10) / 10}s`);
     set('infoBackground', state.selectedVideo ? state.selectedVideo.toUpperCase() : 'Not selected');
     set('infoTime',       `${Math.round(10 + state.audioDuration * 0.5)}s`);
+}
+
+// ========== SUBTITLE PREVIEW & EDITOR ==========
+
+let previewAudioEl = null;
+let previewRAF     = null;
+let isPreviewPlaying = false;
+
+function initSubtitlePreview() {
+    renderWordEditor();
+    setupPreviewAudio();
+    renderPhoneSubtitle(0);
+    // Reset playback controls
+    const playBtn = document.getElementById('previewPlayBtn');
+    if (playBtn) { playBtn.innerHTML = '<i class="fas fa-play"></i> Play Preview'; playBtn.dataset.playing = '0'; }
+}
+
+function setupPreviewAudio() {
+    // Reuse blob from state
+    if (!state.audioBlob) return;
+    if (previewAudioEl) {
+        previewAudioEl.pause();
+        previewAudioEl.src = '';
+    }
+    previewAudioEl = new Audio(URL.createObjectURL(state.audioBlob));
+    previewAudioEl.addEventListener('ended', () => stopPreview());
+    previewAudioEl.addEventListener('timeupdate', () => {
+        const t = previewAudioEl.currentTime;
+        renderPhoneSubtitle(t);
+        updateTimeDisplay(t);
+    });
+}
+
+function stopPreview() {
+    if (previewAudioEl) { previewAudioEl.pause(); previewAudioEl.currentTime = 0; }
+    cancelAnimationFrame(previewRAF);
+    isPreviewPlaying = false;
+    const playBtn = document.getElementById('previewPlayBtn');
+    if (playBtn) { playBtn.innerHTML = '<i class="fas fa-play"></i> Play Preview'; playBtn.dataset.playing = '0'; }
+    renderPhoneSubtitle(0);
+    updateTimeDisplay(0);
+}
+
+function togglePreviewPlay() {
+    if (!previewAudioEl) { setupPreviewAudio(); }
+    const playBtn = document.getElementById('previewPlayBtn');
+    if (isPreviewPlaying) {
+        previewAudioEl.pause();
+        isPreviewPlaying = false;
+        if (playBtn) { playBtn.innerHTML = '<i class="fas fa-play"></i> Play Preview'; playBtn.dataset.playing = '0'; }
+    } else {
+        previewAudioEl.play().catch(e => console.error(e));
+        isPreviewPlaying = true;
+        if (playBtn) { playBtn.innerHTML = '<i class="fas fa-pause"></i> Pause'; playBtn.dataset.playing = '1'; }
+    }
+}
+
+function updateTimeDisplay(t) {
+    const el = document.getElementById('previewTimeDisplay');
+    if (el) el.textContent = `${t.toFixed(2)}s / ${state.audioDuration.toFixed(2)}s`;
+}
+
+// Build groups from editedTimestamps (same logic as buildSubtitles)
+function buildGroups(timestamps) {
+    const TARGET = 3, MAX = 4;
+    const groups = [];
+    let current  = [];
+    for (const w of timestamps) {
+        const text = (w.word || '').trim();
+        if (!text) continue;
+        current.push(w);
+        const last = text[text.length - 1];
+        const hardBreak = '.!?'.includes(last);
+        const softBreak = ',;:—–'.includes(last) && current.length >= 2;
+        const sizeBreak = current.length >= MAX;
+        if (hardBreak || softBreak || sizeBreak || current.length >= TARGET) {
+            groups.push(current);
+            current = [];
+        }
+    }
+    if (current.length) groups.push(current);
+    return groups;
+}
+
+function renderPhoneSubtitle(currentTime) {
+    const subContainer = document.getElementById('phoneSubtitleDisplay');
+    if (!subContainer) return;
+
+    const ts = state.editedTimestamps;
+    if (!ts || ts.length === 0) { subContainer.innerHTML = ''; return; }
+
+    const groups = buildGroups(ts);
+    let activeGroup = null;
+    let activeWordIdx = -1;
+
+    for (const group of groups) {
+        for (let i = 0; i < group.length; i++) {
+            const w = group[i];
+            const wStart = Math.max(0, w.start - SUBTITLE_LEAD_S);
+            const wEnd   = Math.max(wStart + 0.05, w.end - SUBTITLE_LEAD_S);
+            if (currentTime >= wStart && currentTime < wEnd) {
+                activeGroup   = group;
+                activeWordIdx = i;
+                break;
+            }
+        }
+        if (activeGroup) break;
+    }
+
+    if (!activeGroup) { subContainer.innerHTML = ''; return; }
+
+    const cleanWords = activeGroup.map(w => (w.word || '').replace(/[{}\\]/g, ''));
+    const half = Math.ceil(cleanWords.length / 2);
+
+    const renderLine = (words, startIdx) => words.map((word, localIdx) => {
+        const globalIdx = startIdx + localIdx;
+        const isActive  = globalIdx === activeWordIdx;
+        return `<span class="sub-word${isActive ? ' sub-word-active' : ''}">${word}</span>`;
+    }).join(' ');
+
+    const line1HTML = renderLine(cleanWords.slice(0, half), 0);
+    const line2HTML = cleanWords.length > half ? renderLine(cleanWords.slice(half), half) : '';
+
+    subContainer.innerHTML = `
+        <div class="sub-line">${line1HTML}</div>
+        ${line2HTML ? `<div class="sub-line">${line2HTML}</div>` : ''}
+    `;
+}
+
+// ========== WORD TIMESTAMP EDITOR ==========
+
+function renderWordEditor() {
+    const container = document.getElementById('wordTimestampEditor');
+    if (!container) return;
+
+    const ts = state.editedTimestamps;
+    if (!ts || ts.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:2rem;">No timestamps available.</p>';
+        return;
+    }
+
+    let html = `
+        <div class="editor-header">
+            <span class="editor-col-word">Word</span>
+            <span class="editor-col-label">Start (s)</span>
+            <span class="editor-col-label">End (s)</span>
+            <span class="editor-col-label">Duration</span>
+            <span class="editor-col-label">Preview</span>
+        </div>
+        <div class="editor-rows">
+    `;
+
+    ts.forEach((w, idx) => {
+        const dur = (w.end - w.start).toFixed(3);
+        html += `
+            <div class="editor-row" id="edrow-${idx}" data-idx="${idx}">
+                <span class="editor-word-text">${escapeHTML(w.word || '')}</span>
+                <div class="editor-time-inputs">
+                    <input type="number" class="ts-input ts-start" data-idx="${idx}" value="${w.start.toFixed(3)}" min="0" step="0.01" title="Start time (seconds)">
+                    <input type="number" class="ts-input ts-end"   data-idx="${idx}" value="${w.end.toFixed(3)}"   min="0" step="0.01" title="End time (seconds)">
+                    <span class="ts-dur" id="tsdur-${idx}">${dur}s</span>
+                </div>
+                <button class="btn-audition" onclick="auditionWord(${idx})" title="Preview this word">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+
+    // Bind input changes
+    container.querySelectorAll('.ts-input').forEach(input => {
+        input.addEventListener('change', handleTimestampInputChange);
+        input.addEventListener('input',  handleTimestampInputChange);
+    });
+}
+
+function escapeHTML(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function handleTimestampInputChange(e) {
+    const idx   = parseInt(e.target.dataset.idx);
+    const val   = parseFloat(e.target.value);
+    if (isNaN(val) || val < 0) return;
+
+    if (e.target.classList.contains('ts-start')) {
+        state.editedTimestamps[idx].start = val;
+    } else {
+        state.editedTimestamps[idx].end = val;
+    }
+
+    // Update duration display
+    const w = state.editedTimestamps[idx];
+    const durEl = document.getElementById(`tsdur-${idx}`);
+    if (durEl) durEl.textContent = `${(w.end - w.start).toFixed(3)}s`;
+
+    // Highlight edited row
+    const row = document.getElementById(`edrow-${idx}`);
+    if (row) { row.classList.add('edited'); }
+}
+
+function auditionWord(idx) {
+    // Jump preview audio to word start and play briefly
+    if (!previewAudioEl) { setupPreviewAudio(); }
+    const w = state.editedTimestamps[idx];
+    if (!w) return;
+    previewAudioEl.pause();
+    isPreviewPlaying = false;
+    const playBtn = document.getElementById('previewPlayBtn');
+    if (playBtn) { playBtn.innerHTML = '<i class="fas fa-play"></i> Play Preview'; }
+    previewAudioEl.currentTime = Math.max(0, w.start);
+    previewAudioEl.play().catch(e => {});
+    setTimeout(() => {
+        previewAudioEl.pause();
+    }, (w.end - w.start + 0.2) * 1000);
+    renderPhoneSubtitle(w.start);
+    // Scroll & highlight editor row
+    const row = document.getElementById(`edrow-${idx}`);
+    if (row) { row.scrollIntoView({ behavior:'smooth', block:'nearest' }); row.classList.add('auditioned'); setTimeout(() => row.classList.remove('auditioned'), 800); }
+}
+
+function applyTimestampEdits() {
+    // Rebuild ASS from edited timestamps
+    state.subtitlesASS = buildSubtitles(state.editedTimestamps);
+
+    // Clear edit highlights
+    document.querySelectorAll('.editor-row.edited').forEach(r => r.classList.remove('edited'));
+
+    Toast.show('Subtitle timings updated & applied!', 'success');
+
+    // Flash the phone mockup
+    const phone = document.getElementById('phoneMockup');
+    if (phone) {
+        phone.style.boxShadow = '0 0 40px rgba(0,204,136,0.8)';
+        setTimeout(() => { phone.style.boxShadow = ''; }, 600);
+    }
+}
+
+function resetTimestamps() {
+    if (!confirm('Reset all edits back to original timestamps?')) return;
+    state.editedTimestamps = JSON.parse(JSON.stringify(state.wordTimestamps));
+    renderWordEditor();
+    renderPhoneSubtitle(previewAudioEl ? previewAudioEl.currentTime : 0);
+    Toast.show('Timestamps reset to original', 'info');
 }
 
 // ========== VIDEO GENERATION ==========
@@ -589,9 +843,11 @@ function updateJobStatus(data) {
 
 function resetApplication() {
     if (state.jobPollInterval) { clearInterval(state.jobPollInterval); state.jobPollInterval = null; }
+    stopPreview();
     Object.assign(state, {
         audioBlob: null, audioDuration: 0, subtitlesASS: "", selectedVideo: "mc1",
-        currentJobId: "", audioBase64: "", script: "", isProcessing: false, wordTimestamps: []
+        currentJobId: "", audioBase64: "", script: "", isProcessing: false,
+        wordTimestamps: [], editedTimestamps: []
     });
 
     const reset = (id, prop, val) => { const el = document.getElementById(id); if (el) el[prop] = val; };
@@ -601,7 +857,6 @@ function resetApplication() {
     reset('audioPreview', 'src', '');
     reset('audioStatus', 'innerHTML', '<i class="fas fa-info-circle"></i> Click "Generate Audio" to generate with exact timestamps');
     reset('audioStatus', 'className', 'status-message');
-    reset('subtitlePreview', 'innerHTML', '<i class="fas fa-closed-captioning"></i> One-word-at-a-time subtitles will be generated');
     reset('resultSection', 'style.display', 'none');
     reset('progressFill', 'style.width', '0%');
     reset('progressPercent', 'textContent', '0%');
@@ -623,16 +878,17 @@ function resetApplication() {
 // ========== DEBUG UTILITIES ==========
 window.debugState = () => {
     console.log('🔍 ArchNemix State:', {
-        scriptLength:   state.script.length,
-        audioDuration:  state.audioDuration,
-        audioSize:      state.audioBase64.length,
-        subsSize:       state.subtitlesASS.length,
-        selectedVideo:  state.selectedVideo,
-        currentJob:     state.currentJobId,
-        isProcessing:   state.isProcessing,
-        wordTimestamps: state.wordTimestamps.length,
-        ttsEngine:      'Kokoro-82M ONNX Timestamped',
-        timestampRes:   '~12.5ms (exact from pred_dur)',
+        scriptLength:      state.script.length,
+        audioDuration:     state.audioDuration,
+        audioSize:         state.audioBase64.length,
+        subsSize:          state.subtitlesASS.length,
+        selectedVideo:     state.selectedVideo,
+        currentJob:        state.currentJobId,
+        isProcessing:      state.isProcessing,
+        wordTimestamps:    state.wordTimestamps.length,
+        editedTimestamps:  state.editedTimestamps.length,
+        ttsEngine:         'Kokoro-82M ONNX Timestamped',
+        timestampRes:      '~12.5ms (exact from pred_dur)',
     });
     return state;
 };
@@ -653,6 +909,7 @@ window.testTTS = async (text = "Hello, this is a test of Kokoro ONNX timestamped
     } catch (err) { console.error('TTS test failed:', err); }
 };
 
-console.log('🚀 ArchNemix Shorts Generator v3.0');
+console.log('🚀 ArchNemix Shorts Generator v3.1');
 console.log('🎯 TTS: Kokoro-82M ONNX Timestamped (~12.5ms exact timestamps)');
+console.log('🎬 New: Subtitle Preview + Timestamp Editor');
 console.log('📝 Debug: debugState() | testTTS()');
