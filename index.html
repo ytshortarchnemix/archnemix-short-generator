@@ -3,558 +3,1490 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArchNemix | AI Shorts Generator</title>
+    <title>ArchNemix — AI Shorts Studio</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
+        /* ═══════════════════════════════════════════════
+           DESIGN TOKENS
+        ═══════════════════════════════════════════════ */
         :root {
-            --primary: #000000;
-            --secondary: #111111;
-            --accent: #0066FF;
-            --accent-light: #3399FF;
-            --text: #FFFFFF;
-            --text-secondary: #AAAAAA;
-            --card-bg: #1A1A1A;
-            --border: #333333;
-            --success: #00CC88;
-            --warning: #FFAA00;
-            --error: #FF5555;
+            --bg-base:    #050810;
+            --bg-surface: #0A0E1A;
+            --bg-raised:  #0F1525;
+            --bg-hover:   #141B2E;
+            --bg-active:  #192038;
+
+            --border-subtle: rgba(255,255,255,0.055);
+            --border-normal: rgba(255,255,255,0.10);
+            --border-strong: rgba(255,255,255,0.18);
+
+            --accent:       #3B82F6;
+            --accent-glow:  rgba(59,130,246,0.25);
+            --accent-dim:   rgba(59,130,246,0.12);
+            --accent-hover: #60A5FA;
+            --cyan:         #06B6D4;
+            --cyan-dim:     rgba(6,182,212,0.12);
+            --amber:        #F59E0B;
+            --amber-dim:    rgba(245,158,11,0.12);
+            --green:        #10B981;
+            --green-dim:    rgba(16,185,129,0.12);
+            --red:          #EF4444;
+            --red-dim:      rgba(239,68,68,0.10);
+
+            --text-primary:   #F0F4FF;
+            --text-secondary: #6E7A94;
+            --text-tertiary:  #3A4357;
+            --text-accent:    var(--accent);
+
+            --font-display: 'Syne', sans-serif;
+            --font-body:    'Outfit', sans-serif;
+            --font-mono:    'Geist Mono', monospace;
+
+            --radius-sm:  6px;
+            --radius-md:  10px;
+            --radius-lg:  16px;
+            --radius-xl:  22px;
+
+            --waveform-h: 90px;
+            --track-h:    44px;
+            --ruler-h:    28px;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* ═══════════════════════════════════════════════
+           RESET & BASE
+        ═══════════════════════════════════════════════ */
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+        html { scroll-behavior: smooth; }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--primary);
-            color: var(--text);
+            font-family: var(--font-body);
+            background: var(--bg-base);
+            color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.6;
         }
 
-        /* Nav */
+        /* Subtle grid texture */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background-image:
+                linear-gradient(rgba(59,130,246,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59,130,246,0.025) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none; z-index: 0;
+        }
+
+        /* ═══════════════════════════════════════════════
+           NAVBAR
+        ═══════════════════════════════════════════════ */
         .navbar {
-            position: fixed; top: 0; left: 0; right: 0;
-            background: rgba(0,0,0,0.95); backdrop-filter: blur(10px);
-            border-bottom: 1px solid var(--border); z-index: 1000;
-            padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
-        }
-        .logo { display: flex; align-items: center; gap: 0.75rem; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
-        .logo-icon { color: var(--accent); font-size: 1.8rem; }
-        .logo-text { background: linear-gradient(135deg, var(--accent), var(--accent-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .badge { background: var(--accent); color: white; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 12px; font-weight: 600; margin-left: 0.5rem; }
-
-        /* Hero */
-        .hero { padding: 8rem 2rem 4rem; text-align: center; max-width: 800px; margin: 0 auto; }
-        .hero h1 { font-size: 3.5rem; font-weight: 700; line-height: 1.1; margin-bottom: 1.5rem; background: linear-gradient(135deg, #FFFFFF, var(--accent-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .hero p { font-size: 1.25rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 2rem; }
-
-        /* Steps */
-        .steps-nav { display: flex; justify-content: center; align-items: center; gap: 0; margin: 3rem auto; max-width: 900px; padding: 0 2rem; }
-        .step-indicator { display: flex; align-items: center; gap: 0.5rem; cursor: default; }
-        .step-number { width: 36px; height: 36px; background: var(--card-bg); border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; transition: all 0.3s ease; font-size: 0.9rem; }
-        .step-indicator.active .step-number { background: var(--accent); border-color: var(--accent); }
-        .step-indicator.completed .step-number { background: var(--success); border-color: var(--success); }
-        .step-text { font-weight: 500; color: var(--text-secondary); transition: color 0.3s ease; font-size: 0.9rem; white-space: nowrap; }
-        .step-indicator.active .step-text { color: var(--text); }
-        .step-indicator.completed .step-text { color: var(--success); }
-        .step-connector { flex: 1; height: 2px; background: var(--border); margin: 0 0.5rem; min-width: 20px; }
-
-        /* Content */
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 2rem 4rem; }
-        .step-content { background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; padding: 2.5rem; margin-bottom: 2rem; display: none; animation: fadeIn 0.4s ease; }
-        .step-content.active { display: block; }
-        @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-        .step-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
-        .step-header i { color: var(--accent); font-size: 1.5rem; }
-        .step-header h2 { font-size: 1.75rem; font-weight: 600; }
-        .form-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-secondary); }
-        textarea, select, input[type="text"], input[type="number"], input[type="range"] { width: 100%; padding: 1rem; background: var(--secondary); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 1rem; transition: all 0.3s ease; }
-        textarea:focus, select:focus, input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,102,255,0.1); }
-        textarea { min-height: 200px; resize: vertical; }
-
-        /* Video grid */
-        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
-        .video-card { background: var(--secondary); border: 2px solid var(--border); border-radius: 12px; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; text-align: center; }
-        .video-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-        .video-card.selected { border-color: var(--accent); background: rgba(0,102,255,0.05); }
-        .video-thumb { width: 100%; aspect-ratio: 9/16; background: linear-gradient(135deg, var(--secondary), #222); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
-
-        /* Progress */
-        .progress-container { margin: 2rem 0; }
-        .progress-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
-        .progress-bar { height: 6px; background: var(--secondary); border-radius: 3px; overflow: hidden; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-light)); width: 0%; transition: width 0.5s ease; }
-
-        /* Buttons */
-        .btn { padding: 1rem 2rem; border: none; border-radius: 12px; font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-primary:hover:not(:disabled) { background: var(--accent-light); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,102,255,0.2); }
-        .btn-secondary { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
-        .btn-secondary:hover { background: var(--secondary); }
-        .btn-success { background: var(--success); color: white; }
-        .btn-success:hover:not(:disabled) { background: #00DD99; transform: translateY(-2px); }
-        .btn-warning { background: var(--warning); color: #000; }
-        .btn-warning:hover:not(:disabled) { background: #FFBB22; transform: translateY(-2px); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-sm { padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 8px; }
-        .button-group { display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap; }
-
-        /* Status */
-        .status-message { padding: 1rem; background: var(--secondary); border-left: 4px solid var(--accent); border-radius: 8px; margin: 1.5rem 0; }
-        .status-success { border-left-color: var(--success); }
-        .status-error { border-left-color: var(--error); }
-
-        /* Result */
-        .result-section { text-align: center; padding: 2rem; animation: fadeIn 0.5s ease; }
-        .result-video { max-width: 400px; width: 100%; border-radius: 12px; margin: 2rem auto; display: block; }
-
-        /* Footer */
-        .footer { text-align: center; padding: 2rem; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 0.9rem; }
-
-        .char-counter { text-align: right; color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem; }
-        .char-counter.warning { color: var(--warning); }
-        .char-counter.error { color: var(--error); }
-
-        .glitch { animation: glitch 5s infinite; }
-        @keyframes glitch { 0%,100%{transform:translate(0)} 20%{transform:translate(-2px,2px)} 40%{transform:translate(-2px,-2px)} 60%{transform:translate(2px,2px)} 80%{transform:translate(2px,-2px)} }
-
-        /* ================================================================
-           STEP 2.5 — LINE EDITOR
-           ================================================================ */
-
-        .preview-editor-layout {
-            display: grid;
-            grid-template-columns: 240px 1fr;
-            gap: 2rem;
-            align-items: start;
+            position: fixed; top:0; left:0; right:0; z-index: 1000;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 2rem;
+            height: 58px;
+            background: rgba(5,8,16,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
         }
 
-        /* Phone */
-        .phone-mockup-wrap {
-            display: flex; flex-direction: column; align-items: center; gap: 1rem;
-            position: sticky; top: 90px;
+        .nav-brand {
+            display: flex; align-items: center; gap: 0.6rem;
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
         }
-        .phone-mockup {
-            width: 200px; height: 356px; background: #0a0a0a;
-            border-radius: 34px; border: 3px solid #333;
-            position: relative; overflow: hidden;
-            box-shadow: 0 0 0 1px #000, 0 20px 60px rgba(0,0,0,0.8), inset 0 0 0 1px #222;
-            transition: box-shadow 0.4s ease;
-        }
-        .phone-mockup::before {
-            content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-            width: 54px; height: 7px; background: #1a1a1a; border-radius: 4px; z-index: 10;
-        }
-        .phone-bg {
-            position: absolute; inset: 0;
-            background: linear-gradient(180deg, #1a2a1a 0%, #0d1a0d 40%, #1a1500 100%);
-        }
-        .phone-bg::before {
-            content: ''; position: absolute; inset: 0;
-            background:
-                repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(255,255,255,0.025) 18px, rgba(255,255,255,0.025) 19px),
-                repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(255,255,255,0.025) 18px, rgba(255,255,255,0.025) 19px);
-        }
-        .phone-bg-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: rgba(255,255,255,0.07); font-size: 2.5rem; }
-        .phone-subtitle-area {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            padding: 0 10px 24px;
-            display: flex; flex-direction: column; align-items: center; gap: 3px; z-index: 5;
-        }
-        #phoneSubtitleDisplay { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
-        .sub-line { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
-        .sub-word {
-            font-family: 'Arial Black', Arial, sans-serif; font-size: 12px; font-weight: 900; color: #fff;
-            text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 3px 6px rgba(0,0,0,0.9);
-            letter-spacing: 0.3px; line-height: 1.2; transition: color 0.08s ease;
-        }
-        .sub-word-active {
-            color: #FFFF00;
-            text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000,
-                         0 0 10px rgba(255,255,0,0.5), 0 3px 8px rgba(0,0,0,0.9);
-        }
-        .phone-controls { display: flex; flex-direction: column; gap: 0.5rem; width: 200px; }
-        .preview-play-btn {
-            width: 100%; padding: 0.7rem 1rem; background: var(--accent); color: white;
-            border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;
-            font-family: 'Inter', sans-serif; font-size: 0.85rem;
-            display: flex; align-items: center; justify-content: center; gap: 0.4rem;
-        }
-        .preview-play-btn:hover { background: var(--accent-light); }
-        .preview-time { font-size: 0.78rem; color: var(--text-secondary); text-align: center; font-variant-numeric: tabular-nums; }
-        .sync-badge {
-            background: rgba(0,204,136,0.12); border: 1px solid var(--success); color: var(--success);
-            border-radius: 8px; padding: 0.35rem 0.6rem; font-size: 0.72rem; font-weight: 600; text-align: center;
-        }
-
-        /* Line Editor Panel */
-        .editor-panel { display: flex; flex-direction: column; gap: 1rem; }
-        .editor-panel-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
-        .editor-panel-title { font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
-        .editor-panel-title i { color: var(--accent); }
-        .editor-actions { display: flex; gap: 0.5rem; align-items: center; }
-        .editor-meta { font-size: 0.82rem; color: var(--text-secondary); }
-
-        .editor-info {
-            background: rgba(0,102,255,0.07); border: 1px solid rgba(0,102,255,0.18);
-            border-radius: 10px; padding: 0.7rem 1rem; font-size: 0.83rem; color: var(--text-secondary); line-height: 1.5;
-        }
-        .editor-info strong { color: var(--text); }
-
-        /* Scrollable line list */
-        .line-editor-scroll {
-            max-height: 440px; overflow-y: auto;
-            border: 1px solid var(--border); border-radius: 12px; background: var(--secondary);
-        }
-        .line-editor-scroll::-webkit-scrollbar { width: 6px; }
-        .line-editor-scroll::-webkit-scrollbar-track { background: transparent; }
-        .line-editor-scroll::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
-
-        /* Header row */
-        .line-editor-header {
-            display: grid;
-            grid-template-columns: 32px 1fr 90px 90px 64px 120px;
-            gap: 0.5rem;
-            padding: 0.65rem 1rem;
-            background: #0a0a0a;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);
-            text-transform: uppercase; letter-spacing: 0.5px;
-            position: sticky; top: 0; z-index: 2;
-        }
-        .lec-num, .lec-words, .lec-time, .lec-dur, .lec-actions { }
-
-        /* Line rows */
-        .line-editor-row {
-            display: grid;
-            grid-template-columns: 32px 1fr 90px 90px 64px 120px;
-            gap: 0.5rem;
-            padding: 0.6rem 1rem;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            align-items: center;
-            transition: background 0.2s;
-        }
-        .line-editor-row:last-child { border-bottom: none; }
-        .line-editor-row:hover { background: rgba(255,255,255,0.025); }
-        .line-editor-row.le-edited { background: rgba(255,170,0,0.05); }
-        .line-editor-row.le-auditioned { background: rgba(0,102,255,0.1) !important; transition: none; }
-
-        .le-num-badge {
-            width: 24px; height: 24px; background: #222; border-radius: 50%;
+        .nav-brand-icon {
+            width: 28px; height: 28px;
+            background: var(--accent);
+            border-radius: 7px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); flex-shrink: 0;
+            font-size: 0.7rem;
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+        .nav-brand-text { color: var(--text-primary); }
+        .nav-pill {
+            font-size: 0.6rem;
+            font-family: var(--font-mono);
+            font-weight: 500;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(59,130,246,0.25);
+            padding: 0.15rem 0.5rem;
+            border-radius: 99px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
 
-        /* Subtitle text display + input */
-        .le-words-display {
-            font-weight: 500; font-size: 0.9rem; color: var(--text);
-            cursor: text; padding: 0.3rem 0.4rem; border-radius: 6px;
-            border: 1px solid transparent; transition: border-color 0.2s, background 0.2s;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        .nav-right {
+            display: flex; align-items: center; gap: 0.5rem;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
         }
-        .le-words-display:hover { border-color: #333; background: #1a1a1a; }
-        .le-words-input {
-            padding: 0.3rem 0.5rem; background: #1a1a1a; border: 1px solid var(--accent);
-            border-radius: 6px; color: var(--text); font-size: 0.88rem;
-            font-family: 'Inter', sans-serif; width: 100%;
+        .nav-dot {
+            width: 6px; height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse-dot 2s infinite;
         }
-        .le-words-input:focus { outline: none; }
+        @keyframes pulse-dot {
+            0%,100% { opacity:1; transform:scale(1); }
+            50% { opacity:0.5; transform:scale(0.8); }
+        }
 
-        /* Time inputs */
-        .le-time-input {
-            width: 100%; padding: 0.35rem 0.4rem; background: #1a1a1a; border: 1px solid #2a2a2a;
-            border-radius: 6px; color: var(--text); font-size: 0.82rem;
-            font-family: 'Courier New', monospace; text-align: center; transition: border-color 0.2s;
+        /* ═══════════════════════════════════════════════
+           HERO
+        ═══════════════════════════════════════════════ */
+        .hero {
+            padding: 6.5rem 2rem 3rem;
+            text-align: center;
+            position: relative; z-index: 1;
+            max-width: 760px;
+            margin: 0 auto;
         }
-        .le-time-input:focus { outline: none; border-color: var(--accent); background: #222; }
-
-        .le-dur-display { font-size: 0.78rem; color: var(--text-secondary); text-align: center; font-variant-numeric: tabular-nums; }
-
-        /* Action buttons */
-        .le-actions { display: flex; gap: 4px; align-items: center; }
-        .le-btn {
-            background: transparent; border: 1px solid #2a2a2a; border-radius: 5px;
-            color: var(--text-secondary); cursor: pointer; padding: 0;
-            width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
-            transition: all 0.15s; font-size: 0.7rem; flex-shrink: 0;
+        .hero-eyebrow {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 1.25rem;
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
         }
-        .le-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: rgba(0,102,255,0.1); }
-        .le-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .le-btn-play:hover:not(:disabled) { border-color: var(--success); color: var(--success); background: rgba(0,204,136,0.1); }
-        .le-btn-delete:hover:not(:disabled) { border-color: var(--error); color: var(--error); background: rgba(255,85,85,0.1); }
-        .le-btn-split:hover:not(:disabled) { border-color: var(--warning); color: var(--warning); background: rgba(255,170,0,0.1); }
+        .hero-eyebrow::before,
+        .hero-eyebrow::after {
+            content: '';
+            height: 1px; flex: 1;
+            max-width: 60px;
+            background: linear-gradient(90deg, transparent, rgba(59,130,246,0.4));
+        }
+        .hero-eyebrow::after { background: linear-gradient(90deg, rgba(59,130,246,0.4), transparent); }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2.2rem, 5vw, 3.8rem);
+            font-weight: 800;
+            line-height: 1.08;
+            letter-spacing: -0.02em;
+            margin-bottom: 1.25rem;
+            color: var(--text-primary);
+        }
+        .hero h1 span {
+            background: linear-gradient(135deg, var(--accent), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-sub {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            font-weight: 300;
+            max-width: 500px;
+            margin: 0 auto 2rem;
+            line-height: 1.7;
+        }
+
+        .hero-tags {
+            display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap;
+        }
+        .hero-tag {
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-normal);
+            border-radius: 99px;
+            padding: 0.3rem 0.75rem;
+            display: flex; align-items: center; gap: 0.4rem;
+            background: var(--bg-surface);
+        }
+        .hero-tag i { color: var(--accent); font-size: 0.65rem; }
+
+        /* ═══════════════════════════════════════════════
+           STEP NAVIGATION
+        ═══════════════════════════════════════════════ */
+        .steps-nav {
+            display: flex; justify-content: center; align-items: center;
+            padding: 2rem 2rem 0;
+            position: relative; z-index: 1;
+        }
+        .steps-inner {
+            display: flex; align-items: center; gap: 0;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: 0.35rem;
+            overflow: hidden;
+        }
+        .step-indicator {
+            display: flex; align-items: center; gap: 0.55rem;
+            padding: 0.45rem 0.9rem;
+            border-radius: 14px;
+            cursor: default;
+            transition: all 0.25s ease;
+            position: relative;
+        }
+        .step-number {
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            background: var(--bg-hover);
+            color: var(--text-tertiary);
+            border: 1px solid var(--border-subtle);
+            transition: all 0.25s ease;
+            flex-shrink: 0;
+        }
+        .step-text {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            transition: color 0.25s;
+            white-space: nowrap;
+            font-family: var(--font-display);
+            letter-spacing: 0.02em;
+        }
+        .step-indicator.active {
+            background: var(--accent-dim);
+        }
+        .step-indicator.active .step-number {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+        .step-indicator.active .step-text { color: var(--text-primary); }
+        .step-indicator.completed .step-number {
+            background: var(--green-dim);
+            border-color: var(--green);
+            color: var(--green);
+        }
+        .step-indicator.completed .step-text { color: var(--green); }
+        .step-sep {
+            width: 24px; height: 1px;
+            background: var(--border-subtle);
+            flex-shrink: 0;
+        }
+
+        /* ═══════════════════════════════════════════════
+           CONTAINER & STEP CONTENT
+        ═══════════════════════════════════════════════ */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem 2rem 5rem;
+            position: relative; z-index: 1;
+        }
+
+        .step-content {
+            display: none;
+            animation: stepIn 0.35s cubic-bezier(0.22,1,0.36,1);
+        }
+        .step-content.active { display: block; }
+
+        @keyframes stepIn {
+            from { opacity:0; transform: translateY(12px); }
+            to   { opacity:1; transform: translateY(0); }
+        }
+
+        /* ═══════════════════════════════════════════════
+           CARDS
+        ═══════════════════════════════════════════════ */
+        .card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute; top:0; left:0; right:0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(59,130,246,0.3), transparent);
+        }
+
+        .card-header {
+            display: flex; align-items: center; gap: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+        .card-icon {
+            width: 38px; height: 38px;
+            background: var(--accent-dim);
+            border: 1px solid rgba(59,130,246,0.25);
+            border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--accent);
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+        .card-title {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+        .card-sub {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-top: 0.1rem;
+            font-weight: 300;
+        }
+
+        /* ═══════════════════════════════════════════════
+           FORMS
+        ═══════════════════════════════════════════════ */
+        .form-group { margin-bottom: 1.25rem; }
+        label {
+            display: block;
+            margin-bottom: 0.45rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+        }
+        textarea, select, input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            background: var(--bg-raised);
+            border: 1px solid var(--border-normal);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 0.92rem;
+            font-weight: 300;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+            outline: none;
+        }
+        textarea:focus, select:focus, input:focus {
+            border-color: var(--accent);
+            background: var(--bg-active);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+        }
+        textarea {
+            min-height: 190px;
+            resize: vertical;
+            line-height: 1.7;
+        }
+        select option { background: var(--bg-raised); }
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: var(--bg-raised);
+            border-radius: 2px;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px; height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-glow);
+            transition: transform 0.15s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+        .char-counter {
+            text-align: right;
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            color: var(--text-tertiary);
+            margin-top: 0.4rem;
+        }
+        .char-counter.warning { color: var(--amber); }
+        .char-counter.error   { color: var(--red); }
+
+        /* ═══════════════════════════════════════════════
+           BUTTONS
+        ═══════════════════════════════════════════════ */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+            padding: 0.7rem 1.4rem;
+            border: none;
+            border-radius: var(--radius-md);
+            font-family: var(--font-display);
+            font-size: 0.84rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            text-decoration: none;
+        }
+        .btn:disabled { opacity: 0.38; cursor: not-allowed; }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 0 0 0 var(--accent-glow);
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+        .btn-secondary {
+            background: var(--bg-raised);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-normal);
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--border-strong);
+        }
+        .btn-success {
+            background: var(--green);
+            color: #fff;
+        }
+        .btn-success:hover:not(:disabled) {
+            background: #0fcea6;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(16,185,129,0.3);
+        }
+        .btn-amber {
+            background: var(--amber);
+            color: #000;
+            font-weight: 700;
+        }
+        .btn-amber:hover:not(:disabled) {
+            background: #fbbf24;
+            transform: translateY(-1px);
+        }
+        .btn-sm {
+            padding: 0.4rem 0.9rem;
+            font-size: 0.76rem;
+            border-radius: var(--radius-sm);
+        }
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border-normal);
+            color: var(--text-secondary);
+        }
+        .btn-ghost:hover:not(:disabled) {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .button-group {
+            display: flex; gap: 0.75rem; margin-top: 1.75rem; flex-wrap: wrap;
+        }
+
+        /* ═══════════════════════════════════════════════
+           STATUS MESSAGE
+        ═══════════════════════════════════════════════ */
+        .status-message {
+            display: flex; align-items: flex-start; gap: 0.65rem;
+            padding: 0.85rem 1rem;
+            background: var(--bg-raised);
+            border: 1px solid var(--border-subtle);
+            border-left: 3px solid var(--accent);
+            border-radius: var(--radius-md);
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        .status-message i { color: var(--accent); flex-shrink:0; margin-top:0.1rem; }
+        .status-success { border-left-color: var(--green); }
+        .status-success i { color: var(--green); }
+        .status-error { border-left-color: var(--red); }
+        .status-error i { color: var(--red); }
+
+        /* ═══════════════════════════════════════════════
+           AUDIO PLAYER
+        ═══════════════════════════════════════════════ */
+        audio {
+            width: 100%;
+            margin: 0.75rem 0;
+            border-radius: var(--radius-md);
+            height: 38px;
+        }
+        audio::-webkit-media-controls-panel { background: var(--bg-raised); }
+
+        /* ═══════════════════════════════════════════════
+           VIDEO GRID
+        ═══════════════════════════════════════════════ */
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1rem;
+            margin: 1.25rem 0;
+        }
+        .video-card {
+            background: var(--bg-raised);
+            border: 1.5px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        .video-card:hover {
+            border-color: var(--accent);
+            background: var(--bg-hover);
+            transform: translateY(-2px);
+        }
+        .video-card.selected {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+            box-shadow: 0 0 0 1px var(--accent), 0 8px 24px var(--accent-glow);
+        }
+        .video-thumb {
+            width: 100%;
+            aspect-ratio: 9/16;
+            border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 0.75rem;
+            font-size: 2rem;
+        }
+        .video-card-name {
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .video-card-sub {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        /* ═══════════════════════════════════════════════
+           GENERATION INFO GRID
+        ═══════════════════════════════════════════════ */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+            gap: 1px;
+            background: var(--border-subtle);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        .info-cell {
+            background: var(--bg-raised);
+            padding: 1.1rem 1.25rem;
+        }
+        .info-cell-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-tertiary);
+            font-family: var(--font-mono);
+            margin-bottom: 0.35rem;
+        }
+        .info-cell-value {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* ═══════════════════════════════════════════════
+           PROGRESS BAR
+        ═══════════════════════════════════════════════ */
+        .progress-container { margin: 1.5rem 0; }
+        .progress-header {
+            display: flex; justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+        .progress-bar {
+            height: 4px;
+            background: var(--bg-raised);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--cyan));
+            width: 0%;
+            transition: width 0.6s ease;
+            border-radius: 2px;
+        }
+
+        /* ═══════════════════════════════════════════════
+           RESULT
+        ═══════════════════════════════════════════════ */
+        .result-section { text-align:center; padding: 2rem 0; }
+        .result-video {
+            max-width: 360px;
+            width: 100%;
+            border-radius: var(--radius-lg);
+            margin: 1.5rem auto;
+            display: block;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+        }
+
+        /* ═══════════════════════════════════════════════
+           FOOTER
+        ═══════════════════════════════════════════════ */
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            border-top: 1px solid var(--border-subtle);
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            color: var(--text-tertiary);
+            position: relative; z-index: 1;
+        }
+
+        /* ═══════════════════════════════════════════════
+           TOAST SYSTEM
+        ═══════════════════════════════════════════════ */
+        @keyframes toastIn  { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
+        @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateX(16px); } }
+
+        /* ═══════════════════════════════════════════════
+           ██ STEP 2.5 — WAVEFORM SUBTITLE EDITOR ██
+        ═══════════════════════════════════════════════ */
+
+        /* Editor shell */
+        .wave-editor-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            background: var(--bg-surface);
+            position: relative;
+        }
+        .wave-editor-shell::before {
+            content: '';
+            position: absolute; top:0; left:0; right:0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(59,130,246,0.3), transparent);
+            z-index: 2;
+        }
+
+        /* Editor top bar */
+        .wed-topbar {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.65rem 1rem;
+            background: var(--bg-raised);
+            border-bottom: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+        .wed-topbar-title {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.05em;
+            margin-right: 0.5rem;
+        }
+        .wed-btn {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-normal);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-family: var(--font-display);
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .wed-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .wed-btn:disabled { opacity:0.35; cursor:not-allowed; }
+        .wed-btn.wed-success { border-color: rgba(16,185,129,0.4); color: var(--green); background: var(--green-dim); }
+        .wed-btn.wed-success:hover { background: rgba(16,185,129,0.2); }
+        .wed-btn.wed-danger { border-color: rgba(239,68,68,0.3); }
+        .wed-btn.wed-danger:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+        .wed-sep { width:1px; height:18px; background: var(--border-subtle); margin: 0 0.2rem; flex-shrink:0; }
+
+        /* Editor body: phone + timeline */
+        .wed-body {
+            display: flex;
+            min-height: 340px;
+        }
+
+        /* Phone side */
+        .wed-phone-col {
+            width: 176px;
+            flex-shrink: 0;
+            background: var(--bg-raised);
+            border-right: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem 0.75rem;
+            gap: 0.75rem;
+        }
+        .wed-col-label {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-tertiary);
+            font-weight: 500;
+        }
+        .wed-phone {
+            width: 120px;
+            height: 214px;
+            background: #05080D;
+            border-radius: 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 0 1px #000, 0 16px 40px rgba(0,0,0,0.7);
+            flex-shrink: 0;
+        }
+        .wed-phone::before {
+            content:''; position:absolute; top:6px; left:50%; transform:translateX(-50%);
+            width:32px; height:4px; background:#111; border-radius:2px; z-index:5;
+        }
+        .wed-phone-bg {
+            position:absolute; inset:0;
+            background: linear-gradient(180deg, #0a1a0b 0%, #060e07 60%, #1a1200 100%);
+        }
+        .wed-phone-bg::after {
+            content:''; position:absolute; inset:0;
+            background:
+                repeating-linear-gradient(0deg, transparent, transparent 13px, rgba(255,255,255,0.015) 13px, rgba(255,255,255,0.015) 14px),
+                repeating-linear-gradient(90deg, transparent, transparent 13px, rgba(255,255,255,0.015) 13px, rgba(255,255,255,0.015) 14px);
+        }
+        .wed-phone-icon { position:absolute; top:50%; left:50%; transform:translate(-50%,-60%); font-size:2rem; color:rgba(255,255,255,0.05); }
+        .wed-phone-subs {
+            position:absolute; bottom:0; left:0; right:0;
+            padding: 0 7px 15px;
+            display:flex; flex-direction:column; align-items:center; gap:2px; z-index:5;
+        }
+        #wedPhoneSubs { display:flex; flex-direction:column; align-items:center; gap:1px; text-align:center; }
+        .wed-sub-line { display:flex; gap:3px; flex-wrap:wrap; justify-content:center; }
+        .wed-sub-word {
+            font-family: 'Arial Black', Arial, sans-serif;
+            font-size:8.5px; font-weight:900; color:#fff;
+            text-shadow: -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000, -1.5px 1.5px 0 #000, 1.5px 1.5px 0 #000;
+            line-height:1.2;
+        }
+        .wed-sub-word.active { color: #FFD600; }
+
+        .wed-time-display {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(59,130,246,0.2);
+            border-radius: var(--radius-sm);
+            padding: 0.25rem 0.5rem;
+            width: 100%;
+            text-align: center;
+        }
+        .wed-sync-tag {
+            font-family: var(--font-mono);
+            font-size: 0.58rem;
+            color: var(--green);
+            background: var(--green-dim);
+            border: 1px solid rgba(16,185,129,0.2);
+            border-radius: 99px;
+            padding: 0.15rem 0.5rem;
+            text-align: center;
+        }
+
+        /* Timeline column */
+        .wed-timeline-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        /* Transport */
+        .wed-transport {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-raised);
+            border-bottom: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+        .wed-transport-btn {
+            width: 28px; height: 28px;
+            background: transparent;
+            border: 1px solid var(--border-normal);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem;
+            transition: all 0.15s;
+        }
+        .wed-transport-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .wed-play-btn {
+            width: 32px; height: 32px;
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            font-size: 0.8rem;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+        .wed-play-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+        .wed-transport-time {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(59,130,246,0.15);
+            border-radius: var(--radius-sm);
+            padding: 0.2rem 0.55rem;
+            min-width: 80px;
+            text-align: center;
+        }
+        .wed-transport-spacer { flex: 1; }
+        .wed-zoom-label {
+            font-family: var(--font-mono);
+            font-size: 0.62rem;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .wed-zoom-slider {
+            -webkit-appearance: none;
+            width: 70px; height: 3px;
+            background: var(--bg-hover);
+            border-radius: 2px; outline: none; cursor: pointer; border: none; padding: 0;
+        }
+        .wed-zoom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 11px; height: 11px;
+            background: var(--accent);
+            border-radius: 50%;
+        }
+        .wed-snap-label {
+            display: flex; align-items: center; gap: 0.3rem;
+            font-size: 0.68rem;
+            color: var(--text-tertiary);
+            cursor: pointer; user-select: none;
+        }
+        .wed-snap-label input { accent-color: var(--accent); }
+
+        /* Scrollable timeline */
+        .wed-scroll {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+            min-height: 0;
+            cursor: crosshair;
+        }
+        .wed-scroll::-webkit-scrollbar { height: 5px; width: 5px; }
+        .wed-scroll::-webkit-scrollbar-track { background: transparent; }
+        .wed-scroll::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
+
+        .wed-canvas-area {
+            position: relative;
+            min-width: 100%;
+        }
+
+        /* Ruler */
+        #wedRuler { display: block; position: sticky; top:0; z-index: 20; }
+
+        /* Waveform */
+        #wedWave { display: block; }
+
+        /* Sub tracks */
+        .wed-sub-track {
+            height: var(--track-h);
+            position: relative;
+            background: var(--bg-base);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        /* Playhead */
+        .wed-playhead {
+            position: absolute; top: 0;
+            width: 1px;
+            background: rgba(239,68,68,0.9);
+            pointer-events: none;
+            z-index: 30;
+            box-shadow: 0 0 5px rgba(239,68,68,0.5);
+        }
+        .wed-playhead::before {
+            content: '';
+            position: absolute; top: -1px; left: -4px;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 8px solid rgba(239,68,68,0.9);
+        }
+
+        /* Labels column */
+        .wed-labels-col {
+            width: 60px;
+            flex-shrink: 0;
+            background: var(--bg-raised);
+            border-right: 1px solid var(--border-subtle);
+            display: flex; flex-direction: column;
+        }
+        .wed-label-cell {
+            display: flex; align-items: center; justify-content: flex-end;
+            padding-right: 8px;
+            border-bottom: 1px solid var(--border-subtle);
+            font-family: var(--font-mono);
+            font-size: 0.55rem;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            flex-shrink: 0;
+        }
+        .wed-label-ruler { height: var(--ruler-h); }
+        .wed-label-wave  { height: var(--waveform-h); color: rgba(59,130,246,0.45); }
+        .wed-label-sub   { height: var(--track-h); }
+
+        /* Subtitle blocks */
+        .wed-block {
+            position: absolute;
+            top: 4px;
+            height: calc(var(--track-h) - 8px);
+            background: rgba(59,130,246,0.15);
+            border: 1.5px solid rgba(59,130,246,0.45);
+            border-radius: 5px;
+            cursor: move;
+            user-select: none;
+            overflow: hidden;
+            display: flex; align-items: center;
+            min-width: 6px;
+            z-index: 10;
+            transition: background 0.1s, border-color 0.1s;
+        }
+        .wed-block:hover { background: rgba(59,130,246,0.22); border-color: var(--accent); }
+        .wed-block.wed-selected {
+            background: rgba(59,130,246,0.28);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px rgba(59,130,246,0.35), 0 0 10px rgba(59,130,246,0.12);
+        }
+        .wed-block.wed-editing { border-color: var(--amber); background: var(--amber-dim); }
+
+        .wed-block-text {
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            padding: 0 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+            flex: 1;
+            font-family: var(--font-display);
+        }
+        .wed-block-input {
+            font-size: 0.68rem; font-weight: 600;
+            background: transparent; border: none; outline: none;
+            color: var(--amber); padding: 0 6px;
+            width: 100%;
+            font-family: var(--font-display);
+            cursor: text;
+        }
+
+        .wed-handle {
+            position: absolute; top:0; bottom:0; width:8px;
+            cursor: ew-resize; z-index:15;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .wed-handle-l { left:0; }
+        .wed-handle-r { right:0; }
+        .wed-handle::after {
+            content: ''; width: 2px; height:55%;
+            background: rgba(59,130,246,0.45); border-radius:1px;
+        }
+        .wed-block:hover .wed-handle::after,
+        .wed-block.wed-selected .wed-handle::after { background: var(--accent); }
+
+        /* Context menu */
+        .wed-ctx {
+            position: fixed;
+            background: var(--bg-raised);
+            border: 1px solid var(--border-normal);
+            border-radius: var(--radius-md);
+            padding: 0.25rem 0;
+            z-index: 9999;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+            min-width: 160px;
+            display: none;
+        }
+        .wed-ctx.visible { display: block; }
+        .wed-ctx-item {
+            padding: 0.4rem 0.9rem;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex; align-items: center; gap: 0.55rem;
+            transition: background 0.1s;
+            font-family: var(--font-body);
+        }
+        .wed-ctx-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .wed-ctx-item i { width:12px; font-size:0.65rem; color:var(--text-tertiary); }
+        .wed-ctx-sep { height:1px; background: var(--border-subtle); margin: 0.25rem 0; }
+        .wed-ctx-item.danger { color: var(--red); }
+        .wed-ctx-item.danger i { color: var(--red); }
+        .wed-ctx-item.danger:hover { background: var(--red-dim); }
+
+        /* Inspector row */
+        .wed-inspector {
+            display: flex; gap: 0.75rem; align-items: flex-start;
+            padding: 0.75rem 1rem;
+            background: var(--bg-raised);
+            border-top: 1px solid var(--border-subtle);
+            flex-wrap: wrap;
+        }
+        .wed-insp-label {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-tertiary);
+            margin-bottom: 0.2rem;
+        }
+        .wed-insp-input {
+            background: var(--bg-base);
+            border: 1px solid var(--border-normal);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            padding: 0.3rem 0.5rem;
+            outline: none;
+            transition: border-color 0.15s;
+            width: 100%;
+        }
+        .wed-insp-input:focus { border-color: var(--accent); }
+        .wed-insp-text {
+            font-family: var(--font-body);
+            font-size: 0.78rem;
+            background: var(--bg-base);
+            border: 1px solid var(--border-normal);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            padding: 0.3rem 0.55rem;
+            outline: none;
+            resize: none;
+            min-height: 38px;
+            width: 100%;
+            transition: border-color 0.15s;
+        }
+        .wed-insp-text:focus { border-color: var(--accent); }
+        .wed-insp-field { flex: 1; min-width: 70px; }
+        .wed-insp-field-wide { flex: 3; min-width: 180px; }
+        .wed-insp-empty {
+            flex: 1;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            display: flex; align-items: center; gap: 0.4rem;
+            font-family: var(--font-mono);
+        }
+
+        /* Hints row */
+        .wed-hints {
+            display: flex; gap: 0.75rem; align-items: center;
+            padding: 0.45rem 1rem;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-subtle);
+            flex-wrap: wrap;
+        }
+        .wed-hint {
+            display: flex; align-items: center; gap: 0.3rem;
+            font-size: 0.65rem;
+            color: var(--text-tertiary);
+        }
+        .wed-key {
+            background: var(--bg-hover);
+            border: 1px solid var(--border-normal);
+            border-radius: 3px;
+            padding: 0.05rem 0.3rem;
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+        }
 
         /* Apply banner */
-        .apply-banner {
+        .wed-apply-bar {
             display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-            background: rgba(255,170,0,0.07); border: 1px solid rgba(255,170,0,0.25);
-            border-radius: 12px; padding: 0.9rem 1.25rem; flex-wrap: wrap;
+            padding: 0.75rem 1rem;
+            background: rgba(245,158,11,0.06);
+            border: 1px solid rgba(245,158,11,0.2);
+            border-radius: var(--radius-md);
+            margin-top: 1rem;
+            flex-wrap: wrap;
         }
-        .apply-banner-text { font-size: 0.88rem; color: var(--text); }
-        .apply-banner-text span { color: var(--warning); font-weight: 600; }
+        .wed-apply-text {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+        .wed-apply-text strong { color: var(--amber); }
 
-        /* Add line row */
-        .add-line-row {
-            padding: 0.75rem 1rem; display: flex; justify-content: center;
-            border-top: 1px solid rgba(255,255,255,0.04);
-        }
-        .add-line-btn {
-            background: transparent; border: 1px dashed #333; border-radius: 8px;
-            color: var(--text-secondary); cursor: pointer; padding: 0.4rem 1.5rem;
-            font-size: 0.82rem; font-family: 'Inter', sans-serif; transition: all 0.2s;
-            display: flex; align-items: center; gap: 0.4rem;
-        }
-        .add-line-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,102,255,0.06); }
-
-        /* Responsive */
-        @media (max-width: 900px) {
-            .preview-editor-layout { grid-template-columns: 1fr; }
-            .phone-mockup-wrap { position: static; flex-direction: row; flex-wrap: wrap; justify-content: center; }
-            .hero h1 { font-size: 2.5rem; }
-            .steps-nav { flex-direction: column; align-items: center; gap: 1rem; }
-            .step-connector { display: none; }
-            .video-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-            .button-group { flex-direction: column; }
-            .line-editor-header, .line-editor-row {
-                grid-template-columns: 28px 1fr 80px 80px 0 100px;
-            }
-            .le-dur-display, .line-editor-header .lec-dur { display: none; }
-        }
-
-        @media (max-width: 560px) {
-            .line-editor-header, .line-editor-row {
-                grid-template-columns: 24px 1fr 70px 70px 0 90px;
-            }
+        /* ═══ RESPONSIVE ═══ */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; }
+            .steps-inner { flex-direction: column; border-radius: var(--radius-lg); }
+            .step-sep { display:none; }
+            .wed-body { flex-direction: column; }
+            .wed-phone-col { width:100%; flex-direction:row; height:auto; }
+            .wed-phone { width:80px; height:142px; }
+            .wed-labels-col { width: 48px; }
         }
     </style>
 </head>
 <body>
 
-<!-- Nav -->
+<!-- ───────────── NAVBAR ───────────── -->
 <nav class="navbar">
-    <div class="logo">
-        <i class="fas fa-bolt logo-icon"></i>
-        <span class="logo-text">ARCHNEMIX</span>
-        <span class="badge">ALPHA</span>
+    <div class="nav-brand">
+        <div class="nav-brand-icon"><i class="fas fa-bolt"></i></div>
+        <span class="nav-brand-text">ArchNemix</span>
+        <span class="nav-pill">Alpha</span>
     </div>
-    <div>
-        <span style="color:var(--text-secondary);font-size:0.9rem;">
-            <i class="fas fa-bolt"></i> AI-Powered Shorts Generation
-        </span>
+    <div class="nav-right">
+        <div class="nav-dot"></div>
+        AI Shorts Studio
     </div>
 </nav>
 
-<!-- Hero -->
+<!-- ───────────── HERO ───────────── -->
 <section class="hero">
-    <h1 class="glitch">Transform Text into Viral Shorts</h1>
-    <p>ArchNemix AI seamlessly converts your scripts into professional YouTube Shorts with perfect sync, cinematic backgrounds, and broadcast-quality subtitles.</p>
-    <div style="display:flex;gap:1.5rem;justify-content:center;margin-top:2rem;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:0.5rem;"><i class="fas fa-robot" style="color:var(--accent)"></i><span>AI Voice Generation</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;"><i class="fas fa-film" style="color:var(--accent)"></i><span>Cinematic Backgrounds</span></div>
-        <div style="display:flex;align-items:center;gap:0.5rem;"><i class="fas fa-closed-captioning" style="color:var(--accent)"></i><span>Auto-Subtitles</span></div>
+    <div class="hero-eyebrow"><span>Powered by Kokoro-82M ONNX</span></div>
+    <h1>Transform Scripts<br>into <span>Viral Shorts</span></h1>
+    <p class="hero-sub">Professional AI-powered video generation with exact-timestamp subtitles and cinematic backgrounds.</p>
+    <div class="hero-tags">
+        <span class="hero-tag"><i class="fas fa-microchip"></i> AI Voiceover</span>
+        <span class="hero-tag"><i class="fas fa-waveform-lines"></i> Waveform Editor</span>
+        <span class="hero-tag"><i class="fas fa-film"></i> Auto Subtitles</span>
+        <span class="hero-tag"><i class="fas fa-bolt"></i> 12.5ms Precision</span>
     </div>
 </section>
 
-<!-- Steps Nav -->
+<!-- ───────────── STEP INDICATORS ───────────── -->
 <div class="steps-nav">
-    <div class="step-indicator active" data-step="1">
-        <div class="step-number">1</div>
-        <div class="step-text">Script</div>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step-indicator" data-step="2">
-        <div class="step-number">2</div>
-        <div class="step-text">Audio</div>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step-indicator" data-step="2.5">
-        <div class="step-number"><i class="fas fa-closed-captioning" style="font-size:0.65rem"></i></div>
-        <div class="step-text">Subtitles</div>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step-indicator" data-step="3">
-        <div class="step-number">3</div>
-        <div class="step-text">Visuals</div>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step-indicator" data-step="4">
-        <div class="step-number">4</div>
-        <div class="step-text">Generate</div>
+    <div class="steps-inner">
+        <div class="step-indicator active" data-step="1">
+            <div class="step-number">1</div>
+            <div class="step-text">Script</div>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-indicator" data-step="2">
+            <div class="step-number">2</div>
+            <div class="step-text">Audio</div>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-indicator" data-step="2.5">
+            <div class="step-number"><i class="fas fa-closed-captioning" style="font-size:0.55rem"></i></div>
+            <div class="step-text">Subtitles</div>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-indicator" data-step="3">
+            <div class="step-number">3</div>
+            <div class="step-text">Visuals</div>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-indicator" data-step="4">
+            <div class="step-number">4</div>
+            <div class="step-text">Generate</div>
+        </div>
     </div>
 </div>
 
+<!-- ───────────── STEPS ───────────── -->
 <div class="container">
 
-    <!-- Step 1 -->
+    <!-- ── STEP 1: SCRIPT ── -->
     <div class="step-content active" data-step="1">
-        <div class="step-header"><i class="fas fa-edit"></i><h2>Craft Your Narrative</h2></div>
-        <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Write the story you want to tell. Our AI will transform it into a compelling voiceover.</p>
-        <div class="form-group">
-            <label for="scriptInput">Your Script (up to 3500 characters)</label>
-            <textarea id="scriptInput" placeholder="Enter your script here..."></textarea>
-            <div class="char-counter" id="charCounter"><span id="charCount">0</span> / 3500 characters</div>
-        </div>
-        <div class="button-group">
-            <button id="nextStep1" class="btn btn-primary" disabled>Continue to Audio <i class="fas fa-arrow-right"></i></button>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon"><i class="fas fa-pen-nib"></i></div>
+                <div>
+                    <div class="card-title">Write Your Script</div>
+                    <div class="card-sub">Craft the narrative — our AI converts it to a professional voiceover.</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="scriptInput">Script Content</label>
+                <textarea id="scriptInput" placeholder="Start writing your script here… Be descriptive and engaging. The AI will match your tone and pacing."></textarea>
+                <div class="char-counter" id="charCounter"><span id="charCount">0</span> / 3500</div>
+            </div>
+            <div class="button-group">
+                <button id="nextStep1" class="btn btn-primary" disabled>
+                    Continue to Audio <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Step 2 -->
+    <!-- ── STEP 2: AUDIO ── -->
     <div class="step-content" data-step="2">
-        <div class="step-header"><i class="fas fa-volume-up"></i><h2>Voice &amp; Audio Settings</h2></div>
-        <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Powered by Kokoro-82M ONNX with ~12.5ms timestamp precision.</p>
-        <div class="form-group">
-            <label for="voiceSelect">Select Voice</label>
-            <select id="voiceSelect"><option value="">Loading voices...</option></select>
-        </div>
-        <div class="form-group">
-            <label>Speech Rate: <span id="rateValue">1.0</span>×</label>
-            <input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1.0">
-        </div>
-        <div class="status-message" id="audioStatus">
-            <i class="fas fa-info-circle"></i> Click "Generate Audio" to create your voiceover
-        </div>
-        <audio id="audioPreview" controls style="width:100%;margin:1rem 0;"></audio>
-        <div class="button-group">
-            <button id="prevStep2" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</button>
-            <button id="generateAudioBtn" class="btn btn-primary"><i class="fas fa-play"></i> Generate Audio</button>
-            <button id="nextStep2" class="btn btn-primary" disabled>Edit Subtitles <i class="fas fa-arrow-right"></i></button>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon"><i class="fas fa-waveform-lines"></i></div>
+                <div>
+                    <div class="card-title">Voice & Audio</div>
+                    <div class="card-sub">Kokoro-82M ONNX · ~12.5ms timestamp precision per word</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="voiceSelect">Voice</label>
+                <select id="voiceSelect"><option value="">Loading voices…</option></select>
+            </div>
+            <div class="form-group">
+                <label>Speech Rate — <span id="rateValue">1.0</span>×</label>
+                <input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1.0">
+            </div>
+            <div class="status-message" id="audioStatus">
+                <i class="fas fa-circle-info"></i>
+                Click "Generate Audio" to create your voiceover with word-level timestamps.
+            </div>
+            <audio id="audioPreview" controls></audio>
+            <div class="button-group">
+                <button id="prevStep2" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</button>
+                <button id="generateAudioBtn" class="btn btn-primary"><i class="fas fa-play"></i> Generate Audio</button>
+                <button id="nextStep2" class="btn btn-primary" disabled>Edit Subtitles <i class="fas fa-arrow-right"></i></button>
+            </div>
         </div>
     </div>
 
-    <!-- Step 2.5: Line Editor -->
+    <!-- ── STEP 2.5: WAVEFORM SUBTITLE EDITOR ── -->
     <div class="step-content" data-step="2.5">
-        <div class="step-header"><i class="fas fa-closed-captioning"></i><h2>Preview &amp; Edit Subtitle Lines</h2></div>
-        <p style="color:var(--text-secondary);margin-bottom:1.5rem;">
-            Each row is one subtitle line. Set its <strong style="color:#fff">start</strong> and <strong style="color:#fff">end</strong> time, edit the text, split or merge lines. Hit <strong style="color:var(--warning)">Apply Changes</strong> when you're happy — then watch it sync live in the phone preview.
-        </p>
-
-        <div class="preview-editor-layout">
-
-            <!-- Phone mockup -->
-            <div class="phone-mockup-wrap">
-                <div class="phone-mockup" id="phoneMockup">
-                    <div class="phone-bg"><i class="fas fa-gamepad phone-bg-label"></i></div>
-                    <div class="phone-subtitle-area"><div id="phoneSubtitleDisplay"></div></div>
-                </div>
-                <div class="phone-controls">
-                    <button class="preview-play-btn" id="previewPlayBtn" onclick="togglePreviewPlay()">
-                        <i class="fas fa-play"></i> Play Preview
-                    </button>
-                    <div class="preview-time" id="previewTimeDisplay">0.00s / 0.00s</div>
-                    <div class="sync-badge"><i class="fas fa-bolt"></i> ~12.5ms ONNX precision</div>
-                </div>
-            </div>
-
-            <!-- Line editor panel -->
-            <div class="editor-panel">
-                <div class="editor-panel-header">
-                    <div class="editor-panel-title"><i class="fas fa-list-ul"></i> Subtitle Lines</div>
-                    <div class="editor-actions">
-                        <span class="editor-meta" id="lineSummary">0 lines</span>
-                        <button id="resetLines" class="btn btn-secondary btn-sm"><i class="fas fa-undo"></i> Reset</button>
-                    </div>
-                </div>
-
-                <div class="editor-info">
-                    <strong>How to use:</strong>
-                    Click any subtitle text to edit the words. Adjust <em>Start</em> / <em>End</em> times in seconds.
-                    <i class="fas fa-play" style="color:var(--success)"></i> = preview the line in isolation.
-                    <i class="fas fa-cut" style="color:var(--warning)"></i> = split into two lines.
-                    <i class="fas fa-compress-alt" style="color:var(--accent)"></i> = merge with the next line.
-                    <i class="fas fa-trash" style="color:var(--error)"></i> = delete.
-                    Hit <strong style="color:var(--warning)">Apply Changes</strong> to bake edits before continuing.
-                </div>
-
-                <!-- Scrollable table -->
-                <div class="line-editor-scroll">
-                    <div id="lineEditor">
-                        <p style="color:var(--text-secondary);text-align:center;padding:2rem;">Generate audio first to see subtitle lines here.</p>
-                    </div>
-                    <!-- Add line button at bottom -->
-                    <div class="add-line-row">
-                        <button class="add-line-btn" id="addLineBtn">
-                            <i class="fas fa-plus"></i> Add Line
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Apply banner -->
-                <div class="apply-banner">
-                    <div class="apply-banner-text">Done editing? <span>Apply your changes</span> to update the subtitle file.</div>
-                    <button id="applyLineEdits" class="btn btn-warning btn-sm"><i class="fas fa-check"></i> Apply Changes</button>
-                </div>
+        <div class="card-header" style="margin-bottom:1rem;">
+            <div class="card-icon"><i class="fas fa-closed-captioning"></i></div>
+            <div>
+                <div class="card-title">Subtitle Timeline Editor</div>
+                <div class="card-sub">Drag blocks to move · Stretch edges to resize · Double-click to edit text · Playhead shows phone preview live</div>
             </div>
         </div>
 
-        <div class="button-group" style="margin-top:2rem;">
+        <div class="wave-editor-shell">
+
+            <!-- Top toolbar -->
+            <div class="wed-topbar">
+                <span class="wed-topbar-title">SUBTITLE.ASS</span>
+                <button class="wed-btn" onclick="wedUndo()" id="wedUndoBtn"><i class="fas fa-rotate-left"></i> Undo</button>
+                <button class="wed-btn" onclick="wedRedo()" id="wedRedoBtn"><i class="fas fa-rotate-right"></i> Redo</button>
+                <div class="wed-sep"></div>
+                <button class="wed-btn" onclick="wedAddBlock()"><i class="fas fa-plus"></i> Add</button>
+                <button class="wed-btn wed-danger" onclick="wedDeleteSelected()"><i class="fas fa-trash"></i></button>
+                <div class="wed-sep"></div>
+                <button class="wed-btn" onclick="wedSplitSelected()"><i class="fas fa-scissors"></i> Split</button>
+                <button class="wed-btn" onclick="wedMergeSelected()"><i class="fas fa-compress"></i> Merge</button>
+                <div class="wed-sep" style="margin-left:auto;"></div>
+                <button class="wed-btn wed-success" onclick="wedApply()" id="wedApplyBtn"><i class="fas fa-check"></i> Apply Changes</button>
+            </div>
+
+            <!-- Editor body -->
+            <div class="wed-body">
+
+                <!-- Phone preview column -->
+                <div class="wed-phone-col">
+                    <span class="wed-col-label">Preview</span>
+                    <div class="wed-phone">
+                        <div class="wed-phone-bg"><i class="fas fa-gamepad wed-phone-icon"></i></div>
+                        <div class="wed-phone-subs"><div id="wedPhoneSubs"></div></div>
+                    </div>
+                    <div class="wed-time-display" id="wedTimeDisplay">0.00s / 0.00s</div>
+                    <div class="wed-sync-tag"><i class="fas fa-bolt"></i> 12.5ms precision</div>
+                </div>
+
+                <!-- Timeline column -->
+                <div class="wed-timeline-col">
+
+                    <!-- Transport controls -->
+                    <div class="wed-transport">
+                        <button class="wed-transport-btn" onclick="wedSeekRel(-5)" title="Back 5s"><i class="fas fa-backward-step"></i></button>
+                        <button class="wed-transport-btn wed-play-btn" id="wedPlayBtn" onclick="wedTogglePlay()"><i class="fas fa-play" id="wedPlayIcon"></i></button>
+                        <button class="wed-transport-btn" onclick="wedSeekRel(5)" title="Fwd 5s"><i class="fas fa-forward-step"></i></button>
+                        <div class="wed-transport-time" id="wedTransportTime">00:00.00</div>
+                        <div class="wed-transport-spacer"></div>
+                        <span class="wed-zoom-label">Zoom</span>
+                        <input type="range" class="wed-zoom-slider" id="wedZoomSlider" min="1" max="12" step="0.5" value="1" oninput="wedSetZoom(this.value)">
+                        <label class="wed-snap-label">
+                            <input type="checkbox" id="wedSnapToggle" checked>
+                            <span>Snap</span>
+                        </label>
+                    </div>
+
+                    <!-- Scrollable canvas -->
+                    <div style="display:flex; flex:1; overflow:hidden; min-height:0;">
+
+                        <!-- Track labels -->
+                        <div class="wed-labels-col" id="wedLabelsCol">
+                            <div class="wed-label-cell wed-label-ruler"></div>
+                            <div class="wed-label-cell wed-label-wave">Wave</div>
+                            <div id="wedSubLabels"></div>
+                        </div>
+
+                        <!-- Scrollable timeline -->
+                        <div class="wed-scroll" id="wedScroll">
+                            <div id="wedCanvasArea" class="wed-canvas-area">
+                                <canvas id="wedRuler"></canvas>
+                                <canvas id="wedWave"></canvas>
+                                <div id="wedSubTracks"></div>
+                                <div class="wed-playhead" id="wedPlayhead"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inspector row -->
+                    <div class="wed-inspector" id="wedInspector">
+                        <div class="wed-insp-empty"><i class="fas fa-mouse-pointer"></i> Click a block to inspect</div>
+                    </div>
+
+                    <!-- Keyboard hints -->
+                    <div class="wed-hints">
+                        <span class="wed-hint"><span class="wed-key">Space</span> Play/Pause</span>
+                        <span class="wed-hint"><span class="wed-key">←/→</span> Seek</span>
+                        <span class="wed-hint"><span class="wed-key">Del</span> Delete</span>
+                        <span class="wed-hint"><span class="wed-key">Dbl-click</span> Edit text</span>
+                        <span class="wed-hint"><span class="wed-key">Drag</span> Move</span>
+                        <span class="wed-hint"><span class="wed-key">Drag edge</span> Resize</span>
+                        <span class="wed-hint"><span class="wed-key">Ctrl+Z</span> Undo</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Apply banner -->
+        <div class="wed-apply-bar">
+            <div class="wed-apply-text">Done editing? <strong>Apply changes</strong> to bake subtitles before continuing.</div>
+            <button class="btn btn-amber btn-sm" onclick="wedApply()"><i class="fas fa-check"></i> Apply Changes</button>
+        </div>
+
+        <div class="button-group">
             <button id="prevStep2_5" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Audio</button>
             <button id="nextStep2_5" class="btn btn-primary">Continue to Visuals <i class="fas fa-arrow-right"></i></button>
         </div>
     </div>
 
-    <!-- Step 3 -->
+    <!-- ── STEP 3: VISUALS ── -->
     <div class="step-content" data-step="3">
-        <div class="step-header"><i class="fas fa-film"></i><h2>Select Background Visuals</h2></div>
-        <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Choose the perfect background for your short (9:16 format).</p>
-        <div class="video-grid" id="videoGrid"></div>
-        <div class="status-message">
-            <i class="fas fa-closed-captioning"></i> Your edited subtitle lines are ready and synced.
-        </div>
-        <div class="button-group">
-            <button id="prevStep3" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</button>
-            <button id="nextStep3" class="btn btn-primary" disabled>Review &amp; Generate <i class="fas fa-magic"></i></button>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon"><i class="fas fa-film"></i></div>
+                <div>
+                    <div class="card-title">Select Background</div>
+                    <div class="card-sub">Choose a background video for your short — 9:16 vertical format.</div>
+                </div>
+            </div>
+            <div class="video-grid" id="videoGrid"></div>
+            <div class="status-message">
+                <i class="fas fa-closed-captioning"></i>
+                Your edited subtitles are locked and synced to the audio.
+            </div>
+            <div class="button-group">
+                <button id="prevStep3" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</button>
+                <button id="nextStep3" class="btn btn-primary" disabled>Review & Generate <i class="fas fa-arrow-right"></i></button>
+            </div>
         </div>
     </div>
 
-    <!-- Step 4 -->
+    <!-- ── STEP 4: GENERATE ── -->
     <div class="step-content" data-step="4">
-        <div class="step-header"><i class="fas fa-cogs"></i><h2>Generate Your Short</h2></div>
-        <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Processing typically takes 30–180 seconds depending on length.</p>
-        <div style="background:var(--secondary);padding:1.5rem;border-radius:12px;margin-bottom:2rem;">
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">
-                <div><div style="color:var(--text-secondary);font-size:0.9rem;">Script Length</div><div style="font-weight:600" id="infoLength">0 characters</div></div>
-                <div><div style="color:var(--text-secondary);font-size:0.9rem;">Audio Duration</div><div style="font-weight:600" id="infoDuration">0 seconds</div></div>
-                <div><div style="color:var(--text-secondary);font-size:0.9rem;">Background</div><div style="font-weight:600" id="infoBackground">Not selected</div></div>
-                <div><div style="color:var(--text-secondary);font-size:0.9rem;">Estimated Time</div><div style="font-weight:600" id="infoTime">30 seconds</div></div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon"><i class="fas fa-bolt"></i></div>
+                <div>
+                    <div class="card-title">Generate Your Short</div>
+                    <div class="card-sub">Processing typically takes 30–180 seconds depending on length.</div>
+                </div>
             </div>
-        </div>
-        <div class="progress-container">
-            <div class="progress-header"><span id="progressText">Ready to generate</span><span id="progressPercent">0%</span></div>
-            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        </div>
-        <div class="status-message" id="statusMessage">
-            <i class="fas fa-info-circle"></i> Click "Generate Now" to start
-        </div>
-        <div class="button-group">
-            <button id="prevStep4" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</button>
-            <button id="generateVideoBtn" class="btn btn-success"><i class="fas fa-bolt"></i> Generate Now</button>
-        </div>
-        <div class="result-section" id="resultSection" style="display:none;">
-            <h3 style="color:var(--success);margin-bottom:1rem;"><i class="fas fa-check-circle"></i> Your Short is Ready!</h3>
-            <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Download your video or create another one. Rate limited to 3 videos per hour.</p>
-            <video class="result-video" id="resultVideo" controls></video>
-            <div class="button-group" style="justify-content:center;">
-                <a id="downloadBtn" class="btn btn-primary" download><i class="fas fa-download"></i> Download Short</a>
-                <button id="newVideoBtn" class="btn btn-secondary"><i class="fas fa-plus"></i> Create Another</button>
+
+            <div class="info-grid">
+                <div class="info-cell">
+                    <div class="info-cell-label">Script</div>
+                    <div class="info-cell-value" id="infoLength">— chars</div>
+                </div>
+                <div class="info-cell">
+                    <div class="info-cell-label">Duration</div>
+                    <div class="info-cell-value" id="infoDuration">— s</div>
+                </div>
+                <div class="info-cell">
+                    <div class="info-cell-label">Background</div>
+                    <div class="info-cell-value" id="infoBackground">—</div>
+                </div>
+                <div class="info-cell">
+                    <div class="info-cell-label">Est. Time</div>
+                    <div class="info-cell-value" id="infoTime">—</div>
+                </div>
             </div>
+
+            <div class="progress-container">
+                <div class="progress-header">
+                    <span id="progressText">Ready to generate</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            </div>
+
+            <div class="status-message" id="statusMessage">
+                <i class="fas fa-circle-info"></i> Click "Generate Now" to start.
+            </div>
+
+            <div class="button-group">
+                <button id="prevStep4" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</button>
+                <button id="generateVideoBtn" class="btn btn-success"><i class="fas fa-bolt"></i> Generate Now</button>
+            </div>
+
+            <!-- Result -->
+            <div id="resultSection" style="display:none;">
+                <div style="height:1px; background:var(--border-subtle); margin: 2rem 0;"></div>
+                <div class="result-section">
+                    <h3 style="font-family:var(--font-display); font-size:1.4rem; color:var(--green);">
+                        <i class="fas fa-circle-check"></i> Your Short is Ready!
+                    </h3>
+                    <p style="color:var(--text-secondary); font-size:0.85rem; margin:0.6rem 0 0;">Rate limited to 3 videos per hour.</p>
+                    <video class="result-video" id="resultVideo" controls></video>
+                    <div class="button-group" style="justify-content:center;">
+                        <a id="downloadBtn" class="btn btn-primary" download><i class="fas fa-download"></i> Download Short</a>
+                        <button id="newVideoBtn" class="btn btn-secondary"><i class="fas fa-plus"></i> Create Another</button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
 </div>
 
+<!-- ───────────── FOOTER ───────────── -->
 <footer class="footer">
-    <div style="margin-bottom:1rem;">
-        <div class="logo" style="justify-content:center;margin-bottom:0.5rem;">
-            <i class="fas fa-bolt logo-icon"></i><span class="logo-text">ARCHNEMIX</span><span class="badge">ALPHA</span>
-        </div>
-        <p style="color:var(--text-secondary);font-size:0.8rem;">The Future of Content Creation • AI-Powered Video Generation</p>
-    </div>
-    <p style="color:var(--text-secondary);font-size:0.8rem;">Rate limited to 3 videos per hour • Videos auto-deleted after 1 hour • Max 3500 characters / 3 minutes</p>
+    ARCHNEMIX ALPHA &nbsp;·&nbsp; AI-Powered Shorts Studio &nbsp;·&nbsp; Rate limited: 3 videos/hr &nbsp;·&nbsp; Max 3500 chars / ~3 min
 </footer>
+
+<!-- Context menu -->
+<div class="wed-ctx" id="wedCtx">
+    <div class="wed-ctx-item" onclick="wedCtxEdit()"><i class="fas fa-pen"></i> Edit Text</div>
+    <div class="wed-ctx-item" onclick="wedCtxSplit()"><i class="fas fa-scissors"></i> Split at Playhead</div>
+    <div class="wed-ctx-item" onclick="wedCtxMerge()"><i class="fas fa-compress"></i> Merge with Next</div>
+    <div class="wed-ctx-sep"></div>
+    <div class="wed-ctx-item" onclick="wedDuplicate()"><i class="fas fa-copy"></i> Duplicate</div>
+    <div class="wed-ctx-sep"></div>
+    <div class="wed-ctx-item danger" onclick="wedDeleteSelected()"><i class="fas fa-trash"></i> Delete</div>
+</div>
 
 <script src="app.js"></script>
 </body>
